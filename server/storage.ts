@@ -13,6 +13,7 @@ export interface IStorage {
   getDocuments(): Promise<Document[]>;
   getDocument(id: string): Promise<Document | undefined>;
   createDocument(doc: InsertDocument): Promise<Document>;
+  deleteDocument(id: string): Promise<boolean>;
   
   // Conversation methods
   getConversationByDocumentId(documentId: string): Promise<Conversation | undefined>;
@@ -55,6 +56,26 @@ export class MemStorage implements IStorage {
     };
     this.documents.set(id, doc);
     return doc;
+  }
+
+  async deleteDocument(id: string): Promise<boolean> {
+    const deleted = this.documents.delete(id);
+    if (deleted) {
+      const conversations = Array.from(this.conversations.values())
+        .filter(conv => conv.documentId === id);
+      
+      for (const conv of conversations) {
+        const messages = Array.from(this.messages.values())
+          .filter(msg => msg.conversationId === conv.id);
+        
+        for (const msg of messages) {
+          this.messages.delete(msg.id);
+        }
+        
+        this.conversations.delete(conv.id);
+      }
+    }
+    return deleted;
   }
 
   // Conversation methods

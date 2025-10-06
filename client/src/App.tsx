@@ -62,6 +62,23 @@ export default function App() {
     loadDocuments();
   };
 
+  const handleDocumentDelete = async (documentId: string) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        if (activeDocumentId === documentId) {
+          setActiveDocumentId(null);
+        }
+        loadDocuments();
+      }
+    } catch (error) {
+      console.error('Failed to delete document:', error);
+    }
+  };
+
   const activeDocument = documents.find(doc => doc.id === activeDocumentId);
 
   return (
@@ -77,6 +94,7 @@ export default function App() {
           documents={documents}
           activeDocumentId={activeDocumentId}
           onDocumentSelect={handleDocumentSelect}
+          onDocumentDelete={handleDocumentDelete}
         />
       </aside>
 

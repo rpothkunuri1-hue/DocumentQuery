@@ -10,9 +10,10 @@ interface Props {
   documents: Document[];
   activeDocumentId: string | null;
   onDocumentSelect: (id: string) => void;
+  onDocumentDelete: (id: string) => void;
 }
 
-export default function DocumentList({ documents, activeDocumentId, onDocumentSelect }: Props) {
+export default function DocumentList({ documents, activeDocumentId, onDocumentSelect, onDocumentDelete }: Props) {
   if (documents.length === 0) {
     return (
       <div className="documents-list">
@@ -21,6 +22,13 @@ export default function DocumentList({ documents, activeDocumentId, onDocumentSe
     );
   }
 
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this document? This will also delete all associated conversations.')) {
+      onDocumentDelete(id);
+    }
+  };
+
   return (
     <div className="documents-list">
       {documents.map(doc => (
@@ -28,9 +36,20 @@ export default function DocumentList({ documents, activeDocumentId, onDocumentSe
           key={doc.id}
           className={`document-item ${doc.id === activeDocumentId ? 'active' : ''}`}
           onClick={() => onDocumentSelect(doc.id)}
+          data-testid={`document-item-${doc.id}`}
         >
-          <h3>{doc.name}</h3>
-          <p>{new Date(doc.uploadedAt).toLocaleDateString()}</p>
+          <div className="document-info">
+            <h3>{doc.name}</h3>
+            <p>{new Date(doc.uploadedAt).toLocaleDateString()}</p>
+          </div>
+          <button
+            className="btn-delete"
+            onClick={(e) => handleDelete(e, doc.id)}
+            title="Delete document"
+            data-testid={`button-delete-${doc.id}`}
+          >
+            🗑️
+          </button>
         </div>
       ))}
     </div>

@@ -76,6 +76,10 @@ body {
   margin-bottom: 0.5rem;
   border: 1px solid transparent;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
 .document-item:hover {
@@ -88,15 +92,44 @@ body {
   color: white;
 }
 
+.document-info {
+  flex: 1;
+  min-width: 0;
+}
+
 .document-item h3 {
   font-size: 0.875rem;
   font-weight: 500;
   margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .document-item p {
   font-size: 0.75rem;
   opacity: 0.7;
+}
+
+.btn-delete {
+  padding: 0.375rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  opacity: 0.6;
+  transition: all 0.2s;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+.btn-delete:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.document-item.active .btn-delete:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .empty-state {
@@ -284,6 +317,35 @@ body {
 .message.user .message-content {
   background: var(--accent);
   color: white;
+}
+
+.progress-metrics {
+  padding: 0.75rem 1.5rem;
+  background: var(--accent-light);
+  border-top: 1px solid var(--border-color);
+}
+
+.progress-indicator {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.progress-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.progress-stat {
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-primary);
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--accent);
+  border: 1px solid var(--border-color);
 }
 
 .chat-input {

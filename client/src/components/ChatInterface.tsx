@@ -22,6 +22,13 @@ interface Props {
   document: Document;
 }
 
+interface ProgressMetrics {
+  tokensPerSecond?: number;
+  totalDuration?: number;
+  evalCount?: number;
+  promptEvalCount?: number;
+}
+
 export default function ChatInterface({ document }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -33,6 +40,7 @@ export default function ChatInterface({ document }: Props) {
     }
     return 'llama2';
   });
+  const [progressMetrics, setProgressMetrics] = useState<ProgressMetrics | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -100,43 +108,62 @@ export default function ChatInterface({ document }: Props) {
 
       if (!reader) throw new Error('No reader');
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
 
-              if (data.type === 'message_id') {
-                messageId = data.messageId;
-                setMessages(prev => [...prev, {
-                  id: messageId!,
-                  role: 'assistant',
-                  content: '',
-                  createdAt: new Date().toISOString(),
-                }]);
-              } else if (data.type === 'token' && messageId) {
-                assistantMessage += data.content;
-                setMessages(prev => prev.map(m =>
-                  m.id === messageId ? { ...m, content: assistantMessage } : m
-                ));
-              } else if (data.type === 'done') {
-                setIsStreaming(false);
+                if (data.type === 'message_id') {
+                  messageId = data.messageId;
+                  setProgressMetrics(null);
+                  setMessages(prev => [...prev, {
+                    id: messageId!,
+                    role: 'assistant',
+                    content: '',
+                    createdAt: new Date().toISOString(),
+                  }]);
+                } else if (data.type === 'token' && messageId) {
+                  assistantMessage += data.content;
+                  setMessages(prev => prev.map(m =>
+                    m.id === messageId ? { ...m, content: assistantMessage } : m
+                  ));
+                } else if (data.type === 'progress') {
+                  const tokensPerSecond = data.eval_count && data.eval_duration 
+                    ? parseFloat((data.eval_count / (data.eval_duration / 1e9)).toFixed(2))
+                    : undefined;
+                  
+                  setProgressMetrics({
+                    tokensPerSecond,
+                    totalDuration: data.total_duration ? parseFloat((data.total_duration / 1e9).toFixed(2)) : undefined,
+                    evalCount: data.eval_count,
+                    promptEvalCount: data.prompt_eval_count,
+                  });
+                } else if (data.type === 'done') {
+                  setIsStreaming(false);
+                  setProgressMetrics(null);
+                }
+              } catch (e) {
+                console.error('Parse error:', e);
               }
-            } catch (e) {
-              console.error('Parse error:', e);
             }
           }
         }
+      } finally {
+        setIsStreaming(false);
+        setProgressMetrics(null);
       }
     } catch (error) {
       console.error('Failed to send message:', error);
       setIsStreaming(false);
+      setProgressMetrics(null);
     }
   };
 
@@ -183,7 +210,30 @@ export default function ChatInterface({ document }: Props) {
         <div ref={messagesEndRef} />
       </div>
 
-      <form className="chat-input" onSubmit={sendMessage}>
+      {isStreaming && progressMetrics && (
+        <div className="progress-metrics" data-testid="progress-metrics">
+          <div className="progress-indicator">
+            <span className="progress-label">Generating response...</span>
+            {progressMetrics.tokensPerSecond && (
+              <span className="progress-stat" data-testid="tokens-per-second">
+                {progressMetrics.tokensPerSecond} tokens/s
+              </span>
+            )}
+            {progressMetrics.evalCount && (
+              <span className="progress-stat" data-testid="eval-count">
+                {progressMetrics.evalCount} tokens
+              </span>
+            )}
+            {progressMetrics.totalDuration && (
+              <span className="progress-stat" data-testid="total-duration">
+                {progressMetrics.totalDuration}s
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      <form className="chat-input" onSubmit={sendMessage} data-testid="form-chat">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -195,8 +245,9 @@ export default function ChatInterface({ document }: Props) {
           }}
           placeholder="Ask a question..."
           disabled={isStreaming}
+          data-testid="input-question"
         />
-        <button type="submit" className="btn-send" disabled={!input.trim() || isStreaming}>
+        <button type="submit" className="btn-send" disabled={!input.trim() || isStreaming} data-testid="button-send">
           ➤
         </button>
       </form>

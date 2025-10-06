@@ -50,6 +50,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete document
+  app.delete("/api/documents/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteDocument(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete document" });
+    }
+  });
+
   // Upload document
   app.post("/api/documents/upload", upload.single("file"), async (req, res) => {
     try {
