@@ -4,8 +4,13 @@ import { storage } from "./storage";
 import multer from "multer";
 import mammoth from "mammoth";
 import PDFDocument from "pdfkit";
-import { insertDocumentSchema } from "@shared/schema";
+import { insertDocumentSchema, insertMessageSchema } from "@shared/schema";
 import { createRequire } from "module";
+import csvParser from "csv-parser";
+import { Readable } from "stream";
+import * as XLSX from "xlsx";
+import { marked } from "marked";
+import * as cheerio from "cheerio";
 
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
@@ -27,6 +32,62 @@ async function extractTextFromDOCX(buffer: Buffer): Promise<string> {
 
 async function extractTextFromTXT(buffer: Buffer): Promise<string> {
   return buffer.toString("utf-8");
+}
+
+async function extractTextFromCSV(buffer: Buffer): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const results: any[] = [];
+    const stream = Readable.from(buffer);
+    
+    stream
+      .pipe(csvParser())
+      .on('data', (data) => results.push(data))
+      .on('end', () => {
+        const text = results.map(row => 
+          Object.entries(row).map(([key, value]) => `${key}: ${value}`).join(', ')
+        ).join('\n');
+        resolve(text);
+      })
+      .on('error', reject);
+  });
+}
+
+async function extractTextFromExcel(buffer: Buffer): Promise<string> {
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  let text = '';
+  
+  workbook.SheetNames.forEach(sheetName => {
+    const sheet = workbook.Sheets[sheetName];
+    text += `Sheet: ${sheetName}\n`;
+    text += XLSX.utils.sheet_to_csv(sheet);
+    text += '\n\n';
+  });
+  
+  return text;
+}
+
+async function extractTextFromMarkdown(buffer: Buffer): Promise<string> {
+  const markdown = buffer.toString('utf-8');
+  return markdown;
+}
+
+async function extractTextFromHTML(buffer: Buffer): Promise<string> {
+  const html = buffer.toString('utf-8');
+  const $ = cheerio.load(html);
+  $('script, style').remove();
+  return $('body').text().trim() || $.text().trim();
+}
+
+async function extractTextFromRTF(buffer: Buffer): Promise<string> {
+  let rtf = buffer.toString('utf-8');
+  rtf = rtf.replace(/\\par[d]?/g, '\n');
+  rtf = rtf.replace(/\{\*?\\[^{}]+}|[{}]|\\\n?[A-Za-z]+\n?(?:-?\d+)?[ ]?/g, '');
+  return rtf.trim();
+}
+
+async function extractTextFromCode(buffer: Buffer, extension: string): Promise<string> {
+  const code = buffer.toString('utf-8');
+  return `File Type: ${extension}\n\n${code}`;
 }
 
 export function registerRoutes(app: Express): Server {
@@ -96,6 +157,7 @@ export function registerRoutes(app: Express): Server {
 
       const file = req.file;
       let content = "";
+      const extension = file.originalname.split('.').pop()?.toLowerCase() || '';
 
       if (file.mimetype === "application/pdf") {
         content = await extractTextFromPDF(file.buffer);
@@ -103,8 +165,26 @@ export function registerRoutes(app: Express): Server {
         file.mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
       ) {
         content = await extractTextFromDOCX(file.buffer);
-      } else if (file.mimetype === "text/plain") {
+      } else if (file.mimetype === "text/plain" || extension === 'txt') {
         content = await extractTextFromTXT(file.buffer);
+      } else if (file.mimetype === "text/csv" || extension === 'csv') {
+        content = await extractTextFromCSV(file.buffer);
+      } else if (
+        file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+        file.mimetype === "application/vnd.ms-excel" ||
+        extension === 'xlsx' || extension === 'xls'
+      ) {
+        content = await extractTextFromExcel(file.buffer);
+      } else if (file.mimetype === "text/markdown" || extension === 'md') {
+        content = await extractTextFromMarkdown(file.buffer);
+      } else if (file.mimetype === "text/html" || extension === 'html' || extension === 'htm') {
+        content = await extractTextFromHTML(file.buffer);
+      } else if (file.mimetype === "application/rtf" || extension === 'rtf') {
+        content = await extractTextFromRTF(file.buffer);
+      } else if (
+        ['js', 'jsx', 'ts', 'tsx', 'py', 'java', 'c', 'cpp', 'cs', 'go', 'rs', 'rb', 'php', 'swift', 'kt', 'r', 'sql', 'sh', 'bash', 'json', 'xml', 'yaml', 'yml', 'css', 'scss', 'sass', 'less'].includes(extension)
+      ) {
+        content = await extractTextFromCode(file.buffer, extension);
       } else {
         return res.status(400).json({ error: "Unsupported file type" });
       }
@@ -311,7 +391,7 @@ Please provide a helpful and accurate answer based on the document content.`;
         }
       }
 
-      await storage.updateMessage(assistantMessage.id, fullResponse);
+      await storage.updateMessage(assistantMessage.id, { content: fullResponse });
 
       res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
       res.end();
@@ -427,7 +507,7 @@ Please provide a helpful answer based on the documents. When referencing informa
         }
       }
 
-      await storage.updateMessage(assistantMessage.id, fullResponse);
+      await storage.updateMessage(assistantMessage.id, { content: fullResponse });
 
       res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
       res.end();
@@ -472,9 +552,10 @@ Please provide a helpful answer based on the documents. When referencing informa
         markdown += `- **Questions Asked:** ${userMessages.length}\n`;
         markdown += `- **Total Words:** ${totalWords}\n\n`;
         
-        if (documents.length > 0 && documents.some(d => d)) {
+        const validDocuments = documents.filter((d): d is NonNullable<typeof d> => !!d);
+        if (validDocuments.length > 0) {
           markdown += `## Document Summaries\n\n`;
-          documents.filter(d => d).forEach((doc, idx) => {
+          validDocuments.forEach((doc, idx) => {
             markdown += `### ${idx + 1}. ${doc.name}\n\n`;
             
             if (doc.briefSummary) {
@@ -497,7 +578,7 @@ Please provide a helpful answer based on the documents. When referencing informa
             const preview = doc.content.substring(0, 300).trim();
             markdown += `${preview}${doc.content.length > 300 ? "..." : ""}\n\n`;
             
-            if (idx < documents.filter(d => d).length - 1) {
+            if (idx < validDocuments.length - 1) {
               markdown += `---\n\n`;
             }
           });
@@ -552,7 +633,8 @@ Please provide a helpful answer based on the documents. When referencing informa
           doc.fontSize(16).font("Helvetica-Bold").fillColor("black").text("Document Summaries");
           doc.moveDown(1);
           
-          documents.filter(d => d).forEach((document, idx) => {
+          const validDocsForPdf = documents.filter((d): d is NonNullable<typeof d> => !!d);
+          validDocsForPdf.forEach((document, idx) => {
             if (doc.y > 650) {
               doc.addPage();
             }
@@ -599,7 +681,7 @@ Please provide a helpful answer based on the documents. When referencing informa
             });
             doc.moveDown(1);
             
-            if (idx < documents.filter(d => d).length - 1) {
+            if (idx < validDocsForPdf.length - 1) {
               doc.strokeColor("#e5e7eb").lineWidth(0.5)
                  .moveTo(50, doc.y).lineTo(545, doc.y).stroke();
               doc.moveDown(1);
