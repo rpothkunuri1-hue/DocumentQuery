@@ -27,6 +27,30 @@ async function extractTextFromTXT(buffer: Buffer): Promise<string> {
 }
 
 export function registerRoutes(app: Express): Server {
+  // Get available Ollama models
+  app.get("/api/models", async (_req, res) => {
+    try {
+      const ollamaUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+      const response = await fetch(`${ollamaUrl}/api/tags`);
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch models from Ollama");
+      }
+      
+      const data = await response.json();
+      const models = data.models?.map((model: any) => ({
+        name: model.name,
+        size: model.size,
+        modified: model.modified_at,
+      })) || [];
+      
+      res.json(models);
+    } catch (error) {
+      console.error("Failed to fetch Ollama models:", error);
+      res.json([]);
+    }
+  });
+
   // Get all documents
   app.get("/api/documents", async (_req, res) => {
     try {

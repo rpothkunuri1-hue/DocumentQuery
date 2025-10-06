@@ -29,6 +29,7 @@ export default function App() {
     }
     return 'light';
   });
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('ollama-model') || 'llama2';
@@ -39,6 +40,7 @@ export default function App() {
 
   useEffect(() => {
     loadDocuments();
+    loadModels();
   }, []);
 
   useEffect(() => {
@@ -82,6 +84,17 @@ export default function App() {
     } catch (error) {
       console.error('Failed to load documents:', error);
       setError('Failed to load documents. Please refresh the page.');
+    }
+  };
+
+  const loadModels = async () => {
+    try {
+      const response = await fetch('/api/models');
+      const data = await response.json();
+      const modelNames = data.map((model: any) => model.name);
+      setAvailableModels(modelNames);
+    } catch (error) {
+      console.error('Failed to load models:', error);
     }
   };
 
@@ -214,14 +227,24 @@ export default function App() {
               title="Select Ollama model"
               data-testid="select-model"
             >
-              <option value="llama2">Llama 2</option>
-              <option value="llama3">Llama 3</option>
-              <option value="llama3.1">Llama 3.1</option>
-              <option value="mistral">Mistral</option>
-              <option value="mixtral">Mixtral</option>
-              <option value="codellama">Code Llama</option>
-              <option value="gemma">Gemma</option>
-              <option value="phi">Phi</option>
+              {availableModels.length > 0 ? (
+                availableModels.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="llama2">Llama 2</option>
+                  <option value="llama3">Llama 3</option>
+                  <option value="llama3.1">Llama 3.1</option>
+                  <option value="mistral">Mistral</option>
+                  <option value="mixtral">Mixtral</option>
+                  <option value="codellama">Code Llama</option>
+                  <option value="gemma">Gemma</option>
+                  <option value="phi">Phi</option>
+                </>
+              )}
             </select>
             <button 
               className="btn-icon" 

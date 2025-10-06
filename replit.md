@@ -4,6 +4,11 @@
 DocuChat is a web-based document Q&A application that allows users to upload documents (PDF, TXT, DOCX) and have intelligent conversations about their content using Ollama local models. The application features a ChatGPT-inspired interface with streaming responses, conversation memory, and beautiful animations.
 
 ## Recent Changes
+- **2025-10-06**: Dynamic model dropdown implementation
+  - ✅ **Dynamic Model Loading**: Model dropdown now fetches available models from Ollama system via `/api/models` endpoint
+  - ✅ **Smart Fallback**: Automatically falls back to static model list if Ollama is unavailable
+  - ✅ **Real-time Model Discovery**: Displays all installed models without hardcoding
+  
 - **2025-10-06**: Added missing features and improvements
   - ✅ **Dark Mode**: Full theme system with light/dark toggle, CSS variables, localStorage persistence
   - ✅ **Responsive Design**: Fixed mobile sidebar (starts closed on <768px screens)
