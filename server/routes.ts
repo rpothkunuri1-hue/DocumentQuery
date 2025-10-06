@@ -4,8 +4,11 @@ import { storage } from "./storage";
 import multer from "multer";
 import mammoth from "mammoth";
 import PDFDocument from "pdfkit";
-import * as pdfParse from "pdf-parse";
 import { insertDocumentSchema } from "@shared/schema";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -13,7 +16,7 @@ const upload = multer({
 });
 
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  const data = await (pdfParse as any).default(buffer);
+  const data = await pdfParse(buffer);
   return data.text;
 }
 
