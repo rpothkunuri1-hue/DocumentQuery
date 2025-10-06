@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, type DragEvent } from 'react';
 
 interface Document {
   id: string;
@@ -26,14 +26,29 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
   }, [uploading, onUploadingChange]);
 
   const handleFileSelect = (selectedFile: File) => {
+    const extension = selectedFile.name.split('.').pop()?.toLowerCase() || '';
+    
     const validTypes = [
       'application/pdf',
       'text/plain',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/csv',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'text/markdown',
+      'text/html',
+      'application/rtf',
+    ];
+    
+    const validExtensions = [
+      'pdf', 'txt', 'docx', 'csv', 'xlsx', 'xls', 'md', 'html', 'htm', 'rtf',
+      'js', 'jsx', 'ts', 'tsx', 'py', 'java', 'c', 'cpp', 'cs', 'go', 'rs', 
+      'rb', 'php', 'swift', 'kt', 'r', 'sql', 'sh', 'bash', 'json', 'xml', 
+      'yaml', 'yml', 'css', 'scss', 'sass', 'less'
     ];
 
-    if (!validTypes.includes(selectedFile.type)) {
-      alert('Please upload PDF, TXT, or DOCX files');
+    if (!validTypes.includes(selectedFile.type) && !validExtensions.includes(extension)) {
+      alert('Unsupported file type. Please upload PDF, DOCX, TXT, CSV, MD, HTML, RTF, Excel, or source code files.');
       return;
     }
 
@@ -76,7 +91,7 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = (e: DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const droppedFile = e.dataTransfer.files[0];

@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Route, Link, useLocation } from 'wouter';
+import { Menu, Upload, Sun, Moon, Users, X, Folder, GitCompare, Clock, MessageSquare } from 'lucide-react';
 import DocumentList from './components/DocumentList';
 import ChatInterface from './components/ChatInterface';
 import UploadModal from './components/UploadModal';
+import Collections from './pages/Collections';
+import Comparisons from './pages/Comparisons';
+import Jobs from './pages/Jobs';
 
 interface Document {
   id: string;
@@ -13,6 +18,7 @@ interface Document {
 }
 
 export default function App() {
+  const [location] = useLocation();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
@@ -29,6 +35,7 @@ export default function App() {
     }
     return 'light';
   });
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('ollama-model') || 'llama2';
@@ -39,6 +46,7 @@ export default function App() {
 
   useEffect(() => {
     loadDocuments();
+    loadModels();
   }, []);
 
   useEffect(() => {
@@ -82,6 +90,17 @@ export default function App() {
     } catch (error) {
       console.error('Failed to load documents:', error);
       setError('Failed to load documents. Please refresh the page.');
+    }
+  };
+
+  const loadModels = async () => {
+    try {
+      const response = await fetch('/api/models');
+      const data = await response.json();
+      const modelNames = data.map((model: any) => model.name);
+      setAvailableModels(modelNames);
+    } catch (error) {
+      console.error('Failed to load models:', error);
     }
   };
 
@@ -154,6 +173,8 @@ export default function App() {
   const activeDocument = documents.find(doc => doc.id === activeDocumentId);
   const selectedDocuments = documents.filter(doc => selectedDocumentIds.includes(doc.id));
 
+  const isDocumentPage = location === '/';
+
   return (
     <div className="app">
       {sidebarOpen && typeof window !== 'undefined' && window.innerWidth <= 768 && (
@@ -166,44 +187,76 @@ export default function App() {
       
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>Documents</h2>
-          <div className="sidebar-header-actions">
-            <button 
-              className={`btn ${multiDocMode ? 'btn-secondary' : 'btn-ghost'}`}
-              onClick={toggleMultiDocMode}
-              data-testid="button-multi-doc"
-              title={multiDocMode ? 'Exit multi-document mode' : 'Enable multi-document mode'}
-            >
-              {multiDocMode ? '✓ Multi' : 'Multi'}
-            </button>
-            <button 
-              className="btn btn-primary" 
-              onClick={() => setShowUpload(true)}
-              data-testid="button-upload"
-            >
-              + Upload
-            </button>
-          </div>
+          <h2>DocuChat</h2>
         </div>
-        <DocumentList
-          documents={documents}
-          activeDocumentId={activeDocumentId}
-          selectedDocumentIds={multiDocMode ? selectedDocumentIds : []}
-          multiDocMode={multiDocMode}
-          onDocumentSelect={handleDocumentSelect}
-          onDocumentDelete={handleDocumentDelete}
-        />
+        
+        <nav className="sidebar-nav">
+          <Link href="/" className={`nav-link ${location === '/' ? 'active' : ''}`} data-testid="link-documents">
+            <MessageSquare size={18} />
+            <span>Documents & Chat</span>
+          </Link>
+          <Link href="/collections" className={`nav-link ${location === '/collections' ? 'active' : ''}`} data-testid="link-collections">
+            <Folder size={18} />
+            <span>Collections</span>
+          </Link>
+          <Link href="/comparisons" className={`nav-link ${location === '/comparisons' ? 'active' : ''}`} data-testid="link-comparisons">
+            <GitCompare size={18} />
+            <span>Compare Docs</span>
+          </Link>
+          <Link href="/jobs" className={`nav-link ${location === '/jobs' ? 'active' : ''}`} data-testid="link-jobs">
+            <Clock size={18} />
+            <span>Job Queue</span>
+          </Link>
+        </nav>
+
+        {isDocumentPage && (
+          <>
+            <div className="sidebar-section-header">
+              <h3>Documents</h3>
+              <div className="sidebar-header-actions">
+                <button 
+                  className={`btn btn-icon-text ${multiDocMode ? 'btn-secondary active' : 'btn-ghost'}`}
+                  onClick={toggleMultiDocMode}
+                  data-testid="button-multi-doc"
+                  title={multiDocMode ? 'Exit multi-document mode' : 'Enable multi-document mode'}
+                >
+                  <Users className="icon" size={16} />
+                  <span>{multiDocMode ? 'Multi' : 'Multi'}</span>
+                  {multiDocMode && selectedDocumentIds.length > 0 && (
+                    <span className="badge">{selectedDocumentIds.length}</span>
+                  )}
+                </button>
+                <button 
+                  className="btn btn-primary btn-icon-text" 
+                  onClick={() => setShowUpload(true)}
+                  data-testid="button-upload"
+                >
+                  <Upload size={16} className="icon" />
+                  <span>Upload</span>
+                </button>
+              </div>
+            </div>
+            <DocumentList
+              documents={documents}
+              activeDocumentId={activeDocumentId}
+              selectedDocumentIds={multiDocMode ? selectedDocumentIds : []}
+              multiDocMode={multiDocMode}
+              onDocumentSelect={handleDocumentSelect}
+              onDocumentDelete={handleDocumentDelete}
+            />
+          </>
+        )}
       </aside>
 
       <main className="main-content">
         <header className="header">
           <button 
-            className="btn-icon" 
+            className="btn-icon hamburger-btn" 
             onClick={() => setSidebarOpen(!sidebarOpen)}
             data-testid="button-menu"
             title="Toggle sidebar"
           >
-            ☰
+            <Menu size={24} />
           </button>
           <h1>DocuChat</h1>
           <div className="header-actions">
@@ -214,14 +267,24 @@ export default function App() {
               title="Select Ollama model"
               data-testid="select-model"
             >
-              <option value="llama2">Llama 2</option>
-              <option value="llama3">Llama 3</option>
-              <option value="llama3.1">Llama 3.1</option>
-              <option value="mistral">Mistral</option>
-              <option value="mixtral">Mixtral</option>
-              <option value="codellama">Code Llama</option>
-              <option value="gemma">Gemma</option>
-              <option value="phi">Phi</option>
+              {availableModels.length > 0 ? (
+                availableModels.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <option value="llama2">Llama 2</option>
+                  <option value="llama3">Llama 3</option>
+                  <option value="llama3.1">Llama 3.1</option>
+                  <option value="mistral">Mistral</option>
+                  <option value="mixtral">Mixtral</option>
+                  <option value="codellama">Code Llama</option>
+                  <option value="gemma">Gemma</option>
+                  <option value="phi">Phi</option>
+                </>
+              )}
             </select>
             <button 
               className="btn-icon" 
@@ -229,7 +292,7 @@ export default function App() {
               title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
               data-testid="button-theme"
             >
-              {theme === 'light' ? '🌙' : '☀️'}
+              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
             </button>
           </div>
         </header>
@@ -242,33 +305,52 @@ export default function App() {
               onClick={() => setError(null)}
               data-testid="button-error-close"
             >
-              ✕
+              <X size={16} />
             </button>
           </div>
         )}
 
-        {multiDocMode && selectedDocuments.length > 0 ? (
-          <ChatInterface 
-            documents={selectedDocuments} 
-            selectedModel={selectedModel}
-            onRemoveDocument={removeFromMultiDoc}
-          />
-        ) : activeDocument ? (
-          <ChatInterface documents={[activeDocument]} selectedModel={selectedModel} />
-        ) : (
-          <div className="welcome-screen">
-            <div className="welcome-content">
-              <div className="welcome-icon">💬</div>
-              <h2>Welcome to DocuChat</h2>
-              <p>Upload a document to start having intelligent conversations about its content.</p>
-              <div className="features">
-                <p>✓ Support for PDF, TXT, and DOCX files</p>
-                <p>✓ Real-time streaming responses</p>
-                <p>✓ Conversation history and memory</p>
+        <Route path="/">
+          {multiDocMode && selectedDocuments.length > 0 ? (
+            <ChatInterface 
+              documents={selectedDocuments} 
+              selectedModel={selectedModel}
+              onRemoveDocument={removeFromMultiDoc}
+            />
+          ) : activeDocument ? (
+            <ChatInterface documents={[activeDocument]} selectedModel={selectedModel} />
+          ) : (
+            <div className="welcome-screen">
+              <div className="welcome-content">
+                <div className="welcome-icon">💬</div>
+                <h2>Welcome to DocuChat</h2>
+                <p>Upload a document to start having intelligent conversations about its content.</p>
+                <div className="features">
+                  <p>✓ Support for PDF, TXT, DOCX, CSV, MD, HTML, and more</p>
+                  <p>✓ Real-time streaming responses</p>
+                  <p>✓ Conversation history and memory</p>
+                  <p>✓ Multi-document chat mode</p>
+                  <p>✓ Document collections and organization</p>
+                  <p>✓ Bulk upload and queue management</p>
+                  <p>✓ Document comparison tools</p>
+                  <p>✓ OCR support for images</p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </Route>
+
+        <Route path="/collections">
+          <Collections />
+        </Route>
+
+        <Route path="/comparisons">
+          <Comparisons />
+        </Route>
+
+        <Route path="/jobs">
+          <Jobs />
+        </Route>
       </main>
 
       {showUpload && (
