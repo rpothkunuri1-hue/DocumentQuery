@@ -27,7 +27,19 @@ export default function ChatInterface({ document }: Props) {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('ollama-model') || 'llama2';
+    }
+    return 'llama2';
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ollama-model', selectedModel);
+    }
+  }, [selectedModel]);
 
   useEffect(() => {
     loadConversation();
@@ -75,6 +87,7 @@ export default function ChatInterface({ document }: Props) {
           documentId: document.id,
           conversationId,
           question,
+          model: selectedModel,
         }),
       });
 
@@ -134,6 +147,21 @@ export default function ChatInterface({ document }: Props) {
           <h2>{document.name}</h2>
           <p>Ask questions about this document</p>
         </div>
+        <select 
+          value={selectedModel} 
+          onChange={(e) => setSelectedModel(e.target.value)}
+          className="model-selector"
+          disabled={isStreaming}
+        >
+          <option value="llama2">Llama 2</option>
+          <option value="llama3">Llama 3</option>
+          <option value="llama3.1">Llama 3.1</option>
+          <option value="mistral">Mistral</option>
+          <option value="mixtral">Mixtral</option>
+          <option value="codellama">Code Llama</option>
+          <option value="gemma">Gemma</option>
+          <option value="phi">Phi</option>
+        </select>
       </div>
 
       <div className="messages">

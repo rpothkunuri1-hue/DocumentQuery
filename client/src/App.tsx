@@ -16,11 +16,31 @@ export default function App() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => 
+    typeof window !== 'undefined' ? window.innerWidth > 768 : false
+  );
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme');
+      return (saved as 'light' | 'dark') || 'light';
+    }
+    return 'light';
+  });
 
   useEffect(() => {
     loadDocuments();
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+      localStorage.setItem('theme', theme);
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   const loadDocuments = async () => {
     try {
@@ -66,6 +86,9 @@ export default function App() {
             ☰
           </button>
           <h1>DocuChat</h1>
+          <button className="btn-icon" onClick={toggleTheme} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
         </header>
 
         {activeDocument ? (
