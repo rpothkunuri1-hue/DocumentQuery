@@ -15,12 +15,14 @@ interface Message {
 
 interface Conversation {
   id: string;
-  documentId: string;
+  documentId?: string;
+  documentIds?: string[];
 }
 
 interface Props {
-  document: Document;
+  documents: Document[];
   selectedModel: string;
+  onRemoveDocument?: (id: string) => void;
 }
 
 interface ProgressMetrics {
@@ -30,7 +32,7 @@ interface ProgressMetrics {
   promptEvalCount?: number;
 }
 
-export default function ChatInterface({ document, selectedModel }: Props) {
+export default function ChatInterface({ documents, selectedModel, onRemoveDocument }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -38,9 +40,12 @@ export default function ChatInterface({ document, selectedModel }: Props) {
   const [progressMetrics, setProgressMetrics] = useState<ProgressMetrics | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const isMultiDoc = documents.length > 1;
+  const documentIds = documents.map(doc => doc.id);
+
   useEffect(() => {
     loadConversation();
-  }, [document.id]);
+  }, [documents.map(d => d.id).join(',')]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -48,13 +53,30 @@ export default function ChatInterface({ document, selectedModel }: Props) {
 
   const loadConversation = async () => {
     try {
-      const convResponse = await fetch(`/api/conversations/${document.id}`);
-      const conversation: Conversation = await convResponse.json();
-      setConversationId(conversation.id);
+      if (isMultiDoc) {
+        const convResponse = await fetch('/api/conversations/multi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documentIds }),
+        });
+        
+        if (convResponse.ok) {
+          const conversation: Conversation = await convResponse.json();
+          setConversationId(conversation.id);
 
-      const messagesResponse = await fetch(`/api/messages/${conversation.id}`);
-      const messagesData = await messagesResponse.json();
-      setMessages(messagesData);
+          const messagesResponse = await fetch(`/api/messages/${conversation.id}`);
+          const messagesData = await messagesResponse.json();
+          setMessages(messagesData);
+        }
+      } else if (documents.length === 1) {
+        const convResponse = await fetch(`/api/conversations/${documents[0].id}`);
+        const conversation: Conversation = await convResponse.json();
+        setConversationId(conversation.id);
+
+        const messagesResponse = await fetch(`/api/messages/${conversation.id}`);
+        const messagesData = await messagesResponse.json();
+        setMessages(messagesData);
+      }
     } catch (error) {
       console.error('Failed to load conversation:', error);
     }
@@ -77,15 +99,15 @@ export default function ChatInterface({ document, selectedModel }: Props) {
     setMessages(prev => [...prev, tempUserMessage]);
 
     try {
-      const response = await fetch('/api/chat', {
+      const endpoint = isMultiDoc ? '/api/chat/multi' : '/api/chat';
+      const requestBody = isMultiDoc
+        ? { documentIds, conversationId, question, model: selectedModel }
+        : { documentId: documents[0].id, conversationId, question, model: selectedModel };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          documentId: document.id,
-          conversationId,
-          question,
-          model: selectedModel,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) throw new Error('Failed to send message');
@@ -156,20 +178,107 @@ export default function ChatInterface({ document, selectedModel }: Props) {
     }
   };
 
+  const handleExport = async (format: 'pdf' | 'markdown' | 'json') => {
+    if (!conversationId) return;
+
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}/export?format=${format}`);
+      
+      if (!response.ok) throw new Error('Failed to export conversation');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      const extension = format === 'json' ? 'json' : format === 'markdown' ? 'md' : 'pdf';
+      a.download = `conversation-${conversationId}.${extension}`;
+      
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export:', error);
+    }
+  };
+
+  const headerText = isMultiDoc 
+    ? `${documents.length} Documents` 
+    : documents[0]?.name || 'Document';
+
+  const subHeaderText = isMultiDoc
+    ? `Ask questions across multiple documents • Using ${selectedModel}`
+    : `Ask questions about this document • Using ${selectedModel}`;
+
   return (
     <div className="chat-view">
       <div className="chat-header">
         <div className="chat-header-content">
-          <h2>{document.name}</h2>
-          <p>Ask questions about this document • Using {selectedModel}</p>
+          <h2 data-testid="text-header">{headerText}</h2>
+          <p>{subHeaderText}</p>
+        </div>
+        <div className="chat-header-actions">
+          <button 
+            onClick={() => handleExport('pdf')} 
+            className="btn-export"
+            disabled={!conversationId || messages.length === 0}
+            title="Export as PDF"
+            data-testid="button-export-pdf"
+          >
+            📄 PDF
+          </button>
+          <button 
+            onClick={() => handleExport('markdown')} 
+            className="btn-export"
+            disabled={!conversationId || messages.length === 0}
+            title="Export as Markdown"
+            data-testid="button-export-markdown"
+          >
+            📝 MD
+          </button>
+          <button 
+            onClick={() => handleExport('json')} 
+            className="btn-export"
+            disabled={!conversationId || messages.length === 0}
+            title="Export as JSON"
+            data-testid="button-export-json"
+          >
+            💾 JSON
+          </button>
         </div>
       </div>
+
+      {isMultiDoc && (
+        <div className="document-chips" data-testid="document-chips">
+          {documents.map(doc => (
+            <div key={doc.id} className="document-chip" data-testid={`chip-document-${doc.id}`}>
+              <span className="chip-name">{doc.name}</span>
+              {onRemoveDocument && (
+                <button
+                  onClick={() => onRemoveDocument(doc.id)}
+                  className="chip-remove"
+                  title="Remove document"
+                  data-testid={`button-remove-${doc.id}`}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="messages">
         {messages.length === 0 ? (
           <div className="empty-chat">
             <h3>Start a conversation</h3>
-            <p>Ask any question about "{document.name}"</p>
+            <p>
+              {isMultiDoc 
+                ? `Ask questions about your ${documents.length} selected documents`
+                : `Ask any question about "${documents[0]?.name}"`
+              }
+            </p>
           </div>
         ) : (
           messages.map(message => (

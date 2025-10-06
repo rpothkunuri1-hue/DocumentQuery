@@ -15,6 +15,8 @@ interface Document {
 export default function App() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [multiDocMode, setMultiDocMode] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => 
@@ -84,10 +86,39 @@ export default function App() {
   };
 
   const handleDocumentSelect = (documentId: string) => {
-    setActiveDocumentId(documentId);
-    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-      setSidebarOpen(false);
+    if (multiDocMode) {
+      setSelectedDocumentIds(prev => 
+        prev.includes(documentId)
+          ? prev.filter(id => id !== documentId)
+          : [...prev, documentId]
+      );
+    } else {
+      setActiveDocumentId(documentId);
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        setSidebarOpen(false);
+      }
     }
+  };
+
+  const toggleMultiDocMode = () => {
+    setMultiDocMode(prev => {
+      const newMode = !prev;
+      if (newMode) {
+        if (activeDocumentId) {
+          setSelectedDocumentIds([activeDocumentId]);
+        }
+      } else {
+        if (selectedDocumentIds.length > 0) {
+          setActiveDocumentId(selectedDocumentIds[0]);
+        }
+        setSelectedDocumentIds([]);
+      }
+      return newMode;
+    });
+  };
+
+  const removeFromMultiDoc = (documentId: string) => {
+    setSelectedDocumentIds(prev => prev.filter(id => id !== documentId));
   };
 
   const handleUploadComplete = (document: Document) => {
@@ -106,6 +137,9 @@ export default function App() {
         if (activeDocumentId === documentId) {
           setActiveDocumentId(null);
         }
+        if (selectedDocumentIds.includes(documentId)) {
+          setSelectedDocumentIds(prev => prev.filter(id => id !== documentId));
+        }
         loadDocuments();
         setError(null);
       } else {
@@ -118,6 +152,7 @@ export default function App() {
   };
 
   const activeDocument = documents.find(doc => doc.id === activeDocumentId);
+  const selectedDocuments = documents.filter(doc => selectedDocumentIds.includes(doc.id));
 
   return (
     <div className="app">
@@ -132,17 +167,29 @@ export default function App() {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <h2>Documents</h2>
-          <button 
-            className="btn btn-primary" 
-            onClick={() => setShowUpload(true)}
-            data-testid="button-upload"
-          >
-            + Upload
-          </button>
+          <div className="sidebar-header-actions">
+            <button 
+              className={`btn ${multiDocMode ? 'btn-secondary' : 'btn-ghost'}`}
+              onClick={toggleMultiDocMode}
+              data-testid="button-multi-doc"
+              title={multiDocMode ? 'Exit multi-document mode' : 'Enable multi-document mode'}
+            >
+              {multiDocMode ? '✓ Multi' : 'Multi'}
+            </button>
+            <button 
+              className="btn btn-primary" 
+              onClick={() => setShowUpload(true)}
+              data-testid="button-upload"
+            >
+              + Upload
+            </button>
+          </div>
         </div>
         <DocumentList
           documents={documents}
           activeDocumentId={activeDocumentId}
+          selectedDocumentIds={multiDocMode ? selectedDocumentIds : []}
+          multiDocMode={multiDocMode}
           onDocumentSelect={handleDocumentSelect}
           onDocumentDelete={handleDocumentDelete}
         />
@@ -200,8 +247,14 @@ export default function App() {
           </div>
         )}
 
-        {activeDocument ? (
-          <ChatInterface document={activeDocument} selectedModel={selectedModel} />
+        {multiDocMode && selectedDocuments.length > 0 ? (
+          <ChatInterface 
+            documents={selectedDocuments} 
+            selectedModel={selectedModel}
+            onRemoveDocument={removeFromMultiDoc}
+          />
+        ) : activeDocument ? (
+          <ChatInterface documents={[activeDocument]} selectedModel={selectedModel} />
         ) : (
           <div className="welcome-screen">
             <div className="welcome-content">

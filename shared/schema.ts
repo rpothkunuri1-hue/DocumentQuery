@@ -14,7 +14,8 @@ export const documents = pgTable("documents", {
 
 export const conversations = pgTable("conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  documentId: varchar("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  documentId: varchar("document_id").references(() => documents.id, { onDelete: "cascade" }),
+  documentIds: text("document_ids").array(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
