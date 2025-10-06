@@ -11,6 +11,12 @@ import {
   type InsertCache,
   type Job,
   type InsertJob,
+  type Collection,
+  type InsertCollection,
+  type DocumentComparison,
+  type InsertDocumentComparison,
+  type ModelComparison,
+  type InsertModelComparison,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -54,6 +60,24 @@ export interface IStorage {
   getJobs(status?: string): Promise<Job[]>;
   createJob(job: InsertJob): Promise<Job>;
   updateJob(id: string, updates: Partial<Job>): Promise<Job | undefined>;
+  
+  // Collection methods
+  getCollections(): Promise<Collection[]>;
+  getCollection(id: string): Promise<Collection | undefined>;
+  createCollection(collection: InsertCollection): Promise<Collection>;
+  updateCollection(id: string, updates: Partial<Collection>): Promise<Collection | undefined>;
+  deleteCollection(id: string): Promise<boolean>;
+  getDocumentsByCollection(collectionId: string): Promise<Document[]>;
+  
+  // Document Comparison methods
+  getDocumentComparison(documentId1: string, documentId2: string): Promise<DocumentComparison | undefined>;
+  createDocumentComparison(comparison: InsertDocumentComparison): Promise<DocumentComparison>;
+  getDocumentComparisons(): Promise<DocumentComparison[]>;
+  
+  // Model Comparison methods
+  getModelComparison(id: string): Promise<ModelComparison | undefined>;
+  createModelComparison(comparison: InsertModelComparison): Promise<ModelComparison>;
+  getModelComparisonsByConversation(conversationId: string): Promise<ModelComparison[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -63,6 +87,9 @@ export class MemStorage implements IStorage {
   private messages: Map<string, Message>;
   private cache: Map<string, Cache>;
   private jobs: Map<string, Job>;
+  private collections: Map<string, Collection>;
+  private documentComparisons: Map<string, DocumentComparison>;
+  private modelComparisons: Map<string, ModelComparison>;
 
   constructor() {
     this.documents = new Map();
@@ -71,6 +98,9 @@ export class MemStorage implements IStorage {
     this.messages = new Map();
     this.cache = new Map();
     this.jobs = new Map();
+    this.collections = new Map();
+    this.documentComparisons = new Map();
+    this.modelComparisons = new Map();
   }
 
   // Document methods
@@ -100,6 +130,7 @@ export class MemStorage implements IStorage {
       category: insertDoc.category ?? null,
       version: insertDoc.version ?? 1,
       parentVersionId: insertDoc.parentVersionId ?? null,
+      collectionId: insertDoc.collectionId ?? null,
       uploadedAt: now,
       updatedAt: now,
     };
@@ -352,6 +383,110 @@ export class MemStorage implements IStorage {
     }
     this.jobs.set(id, updated);
     return updated;
+  }
+
+  // Collection methods
+  async getCollections(): Promise<Collection[]> {
+    return Array.from(this.collections.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async getCollection(id: string): Promise<Collection | undefined> {
+    return this.collections.get(id);
+  }
+
+  async createCollection(insertCollection: InsertCollection): Promise<Collection> {
+    const id = randomUUID();
+    const now = new Date();
+    const collection: Collection = {
+      id,
+      name: insertCollection.name,
+      description: insertCollection.description ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.collections.set(id, collection);
+    return collection;
+  }
+
+  async updateCollection(id: string, updates: Partial<Collection>): Promise<Collection | undefined> {
+    const collection = this.collections.get(id);
+    if (!collection) return undefined;
+    
+    const updated = { ...collection, ...updates, updatedAt: new Date() };
+    this.collections.set(id, updated);
+    return updated;
+  }
+
+  async deleteCollection(id: string): Promise<boolean> {
+    const deleted = this.collections.delete(id);
+    if (deleted) {
+      Array.from(this.documents.values())
+        .filter(doc => doc.collectionId === id)
+        .forEach(doc => {
+          const updated = { ...doc, collectionId: null };
+          this.documents.set(doc.id, updated);
+        });
+    }
+    return deleted;
+  }
+
+  async getDocumentsByCollection(collectionId: string): Promise<Document[]> {
+    return Array.from(this.documents.values())
+      .filter(doc => doc.collectionId === collectionId)
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+  }
+
+  // Document Comparison methods
+  async getDocumentComparison(documentId1: string, documentId2: string): Promise<DocumentComparison | undefined> {
+    return Array.from(this.documentComparisons.values()).find(
+      comp => 
+        (comp.documentId1 === documentId1 && comp.documentId2 === documentId2) ||
+        (comp.documentId1 === documentId2 && comp.documentId2 === documentId1)
+    );
+  }
+
+  async createDocumentComparison(insertComparison: InsertDocumentComparison): Promise<DocumentComparison> {
+    const id = randomUUID();
+    const comparison: DocumentComparison = {
+      ...insertComparison,
+      id,
+      differences: insertComparison.differences ?? null,
+      similarities: insertComparison.similarities ?? null,
+      comparisonSummary: insertComparison.comparisonSummary ?? null,
+      createdAt: new Date(),
+    };
+    this.documentComparisons.set(id, comparison);
+    return comparison;
+  }
+
+  async getDocumentComparisons(): Promise<DocumentComparison[]> {
+    return Array.from(this.documentComparisons.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  // Model Comparison methods
+  async getModelComparison(id: string): Promise<ModelComparison | undefined> {
+    return this.modelComparisons.get(id);
+  }
+
+  async createModelComparison(insertComparison: InsertModelComparison): Promise<ModelComparison> {
+    const id = randomUUID();
+    const comparison: ModelComparison = {
+      ...insertComparison,
+      id,
+      createdAt: new Date(),
+    };
+    this.modelComparisons.set(id, comparison);
+    return comparison;
+  }
+
+  async getModelComparisonsByConversation(conversationId: string): Promise<ModelComparison[]> {
+    return Array.from(this.modelComparisons.values())
+      .filter(comp => comp.conversationId === conversationId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 }
 

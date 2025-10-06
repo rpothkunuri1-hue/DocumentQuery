@@ -16,6 +16,7 @@ export const documents = pgTable("documents", {
   category: text("category"),
   version: integer("version").default(1).notNull(),
   parentVersionId: varchar("parent_version_id"),
+  collectionId: varchar("collection_id"),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -71,6 +72,35 @@ export const jobs = pgTable("jobs", {
   completedAt: timestamp("completed_at"),
 });
 
+export const collections = pgTable("collections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const documentComparisons = pgTable("document_comparisons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  documentId1: varchar("document_id_1").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  documentId2: varchar("document_id_2").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  differences: jsonb("differences"),
+  similarities: jsonb("similarities"),
+  comparisonSummary: text("comparison_summary"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const modelComparisons = pgTable("model_comparisons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  question: text("question").notNull(),
+  model1: text("model_1").notNull(),
+  model2: text("model_2").notNull(),
+  response1: text("response_1").notNull(),
+  response2: text("response_2").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertDocumentSchema = createInsertSchema(documents).omit({
   id: true,
   uploadedAt: true,
@@ -105,6 +135,22 @@ export const insertJobSchema = createInsertSchema(jobs).omit({
   completedAt: true,
 });
 
+export const insertCollectionSchema = createInsertSchema(collections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDocumentComparisonSchema = createInsertSchema(documentComparisons).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertModelComparisonSchema = createInsertSchema(modelComparisons).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
 
@@ -122,3 +168,12 @@ export type Cache = typeof cache.$inferSelect;
 
 export type InsertJob = z.infer<typeof insertJobSchema>;
 export type Job = typeof jobs.$inferSelect;
+
+export type InsertCollection = z.infer<typeof insertCollectionSchema>;
+export type Collection = typeof collections.$inferSelect;
+
+export type InsertDocumentComparison = z.infer<typeof insertDocumentComparisonSchema>;
+export type DocumentComparison = typeof documentComparisons.$inferSelect;
+
+export type InsertModelComparison = z.infer<typeof insertModelComparisonSchema>;
+export type ModelComparison = typeof modelComparisons.$inferSelect;
