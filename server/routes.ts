@@ -206,9 +206,22 @@ Please provide a helpful and accurate answer based on the document content.`;
         for (const line of lines) {
           try {
             const parsed = JSON.parse(line);
+            
             if (parsed.response) {
               fullResponse += parsed.response;
               res.write(`data: ${JSON.stringify({ type: "token", content: parsed.response })}\n\n`);
+            }
+            
+            if (parsed.total_duration || parsed.load_duration || parsed.prompt_eval_count) {
+              res.write(`data: ${JSON.stringify({ 
+                type: "progress", 
+                total_duration: parsed.total_duration,
+                load_duration: parsed.load_duration,
+                prompt_eval_count: parsed.prompt_eval_count,
+                prompt_eval_duration: parsed.prompt_eval_duration,
+                eval_count: parsed.eval_count,
+                eval_duration: parsed.eval_duration
+              })}\n\n`);
             }
           } catch (e) {
             console.error("Parse error:", e);

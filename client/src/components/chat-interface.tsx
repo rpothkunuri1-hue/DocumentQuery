@@ -18,6 +18,7 @@ export function ChatInterface({ documentId }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
@@ -60,6 +61,7 @@ export function ChatInterface({ documentId }: ChatInterfaceProps) {
       if (!reader) throw new Error("No reader");
 
       let assistantMessage = "";
+      let currentMessageId: string | null = null;
       
       while (true) {
         const { done, value } = await reader.read();
@@ -74,16 +76,17 @@ export function ChatInterface({ documentId }: ChatInterfaceProps) {
               const data = JSON.parse(line.slice(6));
               
               if (data.type === "message_id") {
+                currentMessageId = data.messageId;
                 setStreamingMessageId(data.messageId);
-              } else if (data.type === "token") {
+              } else if (data.type === "token" && currentMessageId) {
                 assistantMessage += data.content;
                 queryClient.setQueryData(
                   ["/api/messages", conversation?.id],
                   (old: Message[] = []) => {
-                    const existing = old.find((m) => m.id === streamingMessageId);
+                    const existing = old.find((m) => m.id === currentMessageId);
                     if (existing) {
                       return old.map((m) =>
-                        m.id === streamingMessageId
+                        m.id === currentMessageId
                           ? { ...m, content: assistantMessage }
                           : m
                       );
@@ -91,9 +94,25 @@ export function ChatInterface({ documentId }: ChatInterfaceProps) {
                     return old;
                   }
                 );
+              } else if (data.type === "progress") {
+                let progressText = "";
+                if (data.eval_count && data.eval_duration) {
+                  const tokensPerSec = (data.eval_count / (data.eval_duration / 1e9)).toFixed(1);
+                  progressText = `${tokensPerSec} tokens/s`;
+                } else if (data.prompt_eval_count && data.prompt_eval_duration) {
+                  const tokensPerSec = (data.prompt_eval_count / (data.prompt_eval_duration / 1e9)).toFixed(1);
+                  progressText = `Processing: ${tokensPerSec} tokens/s`;
+                } else if (data.load_duration) {
+                  const loadSec = (data.load_duration / 1e9).toFixed(1);
+                  progressText = `Loading model: ${loadSec}s`;
+                }
+                if (progressText) {
+                  setProgress(progressText);
+                }
               } else if (data.type === "done") {
                 setIsStreaming(false);
                 setStreamingMessageId(null);
+                setProgress("");
                 queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
               }
             } catch (e) {
@@ -106,6 +125,7 @@ export function ChatInterface({ documentId }: ChatInterfaceProps) {
     onError: () => {
       setIsStreaming(false);
       setStreamingMessageId(null);
+      setProgress("");
       toast({
         title: "Error",
         description: "Failed to send message. Please try again.",
@@ -209,6 +229,11 @@ export function ChatInterface({ documentId }: ChatInterfaceProps) {
               />
             ))}
             {isStreaming && !streamingMessageId && <TypingIndicator />}
+            {progress && (
+              <div className="text-xs text-muted-foreground text-center py-2">
+                {progress}
+              </div>
+            )}
           </>
         )}
         <div ref={messagesEndRef} />
