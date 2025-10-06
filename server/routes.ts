@@ -452,6 +452,10 @@ Please provide a helpful answer based on the documents. When referencing informa
 
       const format = (req.query.format as string) || "json";
       
+      const userMessages = messages.filter(m => m.role === "user");
+      const assistantMessages = messages.filter(m => m.role === "assistant");
+      const totalWords = messages.reduce((acc, m) => acc + m.content.split(/\s+/).length, 0);
+      
       if (format === "json") {
         res.json({
           conversation,
@@ -461,42 +465,187 @@ Please provide a helpful answer based on the documents. When referencing informa
         });
       } else if (format === "markdown") {
         let markdown = `# Conversation Export\n\n`;
-        markdown += `**Date:** ${new Date(conversation.createdAt).toLocaleString()}\n\n`;
-        markdown += `**Documents:** ${documents.map(d => d?.name).join(", ")}\n\n`;
+        markdown += `## Summary\n\n`;
+        markdown += `- **Date:** ${new Date(conversation.createdAt).toLocaleString()}\n`;
+        markdown += `- **Documents Discussed:** ${documents.map(d => d?.name).filter(Boolean).join(", ") || "None"}\n`;
+        markdown += `- **Total Messages:** ${messages.length}\n`;
+        markdown += `- **Questions Asked:** ${userMessages.length}\n`;
+        markdown += `- **Total Words:** ${totalWords}\n\n`;
+        
+        if (documents.length > 0 && documents.some(d => d)) {
+          markdown += `## Document Summaries\n\n`;
+          documents.filter(d => d).forEach((doc, idx) => {
+            markdown += `### ${idx + 1}. ${doc.name}\n\n`;
+            
+            if (doc.briefSummary) {
+              markdown += `**Brief Summary:** ${doc.briefSummary}\n\n`;
+            }
+            
+            if (doc.summary) {
+              markdown += `**Full Summary:**\n\n${doc.summary}\n\n`;
+            }
+            
+            if (doc.keyPoints && doc.keyPoints.length > 0) {
+              markdown += `**Key Points:**\n\n`;
+              doc.keyPoints.forEach((point, i) => {
+                markdown += `${i + 1}. ${point}\n`;
+              });
+              markdown += `\n`;
+            }
+            
+            markdown += `**Content Preview:**\n\n`;
+            const preview = doc.content.substring(0, 300).trim();
+            markdown += `${preview}${doc.content.length > 300 ? "..." : ""}\n\n`;
+            
+            if (idx < documents.filter(d => d).length - 1) {
+              markdown += `---\n\n`;
+            }
+          });
+        }
+        
+        markdown += `## Conversation\n\n`;
         markdown += `---\n\n`;
         
-        for (const msg of messages) {
-          markdown += `### ${msg.role === "user" ? "User" : "Assistant"}\n\n`;
+        for (let i = 0; i < messages.length; i++) {
+          const msg = messages[i];
+          const timestamp = new Date(msg.createdAt).toLocaleTimeString();
+          markdown += `### ${msg.role === "user" ? "👤 User" : "🤖 Assistant"} • ${timestamp}\n\n`;
           markdown += `${msg.content}\n\n`;
+          
+          if (i < messages.length - 1) {
+            markdown += `---\n\n`;
+          }
         }
+        
+        markdown += `\n---\n\n`;
+        markdown += `*Exported on ${new Date().toLocaleString()}*\n`;
 
         res.setHeader("Content-Type", "text/markdown");
         res.setHeader("Content-Disposition", `attachment; filename="conversation-${conversation.id}.md"`);
         res.send(markdown);
       } else if (format === "pdf") {
-        const doc = new PDFDocument();
+        const doc = new PDFDocument({ margins: { top: 50, bottom: 50, left: 50, right: 50 } });
         
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `attachment; filename="conversation-${conversation.id}.pdf"`);
         
         doc.pipe(res);
         
-        doc.fontSize(24).text("Conversation Export", { align: "center" });
-        doc.moveDown();
-        doc.fontSize(12).text(`Date: ${new Date(conversation.createdAt).toLocaleString()}`);
-        doc.text(`Documents: ${documents.map(d => d?.name).join(", ")}`);
+        doc.fontSize(26).font("Helvetica-Bold").text("Conversation Export", { align: "center" });
+        doc.moveDown(1);
+        
+        doc.fontSize(10).font("Helvetica").fillColor("#666666")
+           .text(`Exported on ${new Date().toLocaleString()}`, { align: "center" });
         doc.moveDown(2);
         
-        for (const msg of messages) {
-          doc.fontSize(14).fillColor("#2563eb").text(msg.role === "user" ? "User" : "Assistant");
-          doc.fontSize(11).fillColor("black").text(msg.content, { align: "left" });
-          doc.moveDown();
+        doc.fontSize(16).font("Helvetica-Bold").fillColor("black").text("Summary");
+        doc.moveDown(0.5);
+        doc.fontSize(11).font("Helvetica");
+        doc.text(`Date: ${new Date(conversation.createdAt).toLocaleString()}`);
+        doc.text(`Documents: ${documents.map(d => d?.name).filter(Boolean).join(", ") || "None"}`);
+        doc.text(`Total Messages: ${messages.length}`);
+        doc.text(`Questions Asked: ${userMessages.length}`);
+        doc.text(`Total Words: ${totalWords}`);
+        doc.moveDown(2);
+        
+        if (documents.length > 0 && documents.some(d => d)) {
+          doc.fontSize(16).font("Helvetica-Bold").fillColor("black").text("Document Summaries");
+          doc.moveDown(1);
+          
+          documents.filter(d => d).forEach((document, idx) => {
+            if (doc.y > 650) {
+              doc.addPage();
+            }
+            
+            doc.fontSize(13).font("Helvetica-Bold").fillColor("#2563eb")
+               .text(`${idx + 1}. ${document.name}`);
+            doc.moveDown(0.5);
+            
+            if (document.briefSummary) {
+              doc.fontSize(10).font("Helvetica-Bold").fillColor("black")
+                 .text("Brief Summary:");
+              doc.fontSize(10).font("Helvetica").fillColor("#374151")
+                 .text(document.briefSummary, { width: 500 });
+              doc.moveDown(0.5);
+            }
+            
+            if (document.summary) {
+              doc.fontSize(10).font("Helvetica-Bold").fillColor("black")
+                 .text("Full Summary:");
+              doc.fontSize(10).font("Helvetica").fillColor("#374151")
+                 .text(document.summary, { width: 500, lineGap: 1 });
+              doc.moveDown(0.5);
+            }
+            
+            if (document.keyPoints && document.keyPoints.length > 0) {
+              doc.fontSize(10).font("Helvetica-Bold").fillColor("black")
+                 .text("Key Points:");
+              doc.fontSize(10).font("Helvetica").fillColor("#374151");
+              document.keyPoints.forEach((point, i) => {
+                doc.text(`${i + 1}. ${point}`, { 
+                  width: 480,
+                  indent: 20
+                });
+              });
+              doc.moveDown(0.5);
+            }
+            
+            doc.fontSize(10).font("Helvetica-Bold").fillColor("black")
+               .text("Content Preview:");
+            doc.fontSize(9).font("Helvetica").fillColor("#6b7280");
+            const preview = document.content.substring(0, 200).trim();
+            doc.text(`${preview}${document.content.length > 200 ? "..." : ""}`, {
+              width: 500
+            });
+            doc.moveDown(1);
+            
+            if (idx < documents.filter(d => d).length - 1) {
+              doc.strokeColor("#e5e7eb").lineWidth(0.5)
+                 .moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+              doc.moveDown(1);
+            }
+          });
           doc.moveDown(1.5);
         }
         
-        doc.fontSize(8).fillColor("#9ca3af").text(`Exported on ${new Date().toLocaleString()}`, {
-          align: "center"
-        });
+        doc.fontSize(16).font("Helvetica-Bold").fillColor("black").text("Conversation");
+        doc.moveDown(1);
+        
+        for (let i = 0; i < messages.length; i++) {
+          const msg = messages[i];
+          const timestamp = new Date(msg.createdAt).toLocaleTimeString();
+          
+          const roleColor = msg.role === "user" ? "#2563eb" : "#10b981";
+          const roleLabel = msg.role === "user" ? "User" : "Assistant";
+          
+          if (doc.y > 700) {
+            doc.addPage();
+          }
+          
+          doc.fontSize(13).font("Helvetica-Bold").fillColor(roleColor)
+             .text(`${roleLabel} • ${timestamp}`);
+          doc.moveDown(0.3);
+          
+          doc.fontSize(11).font("Helvetica").fillColor("black")
+             .text(msg.content, {
+               width: 500,
+               align: "left",
+               lineGap: 2
+             });
+          
+          doc.moveDown(1.5);
+          
+          if (i < messages.length - 1) {
+            doc.strokeColor("#e5e7eb").lineWidth(0.5)
+               .moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+            doc.moveDown(1);
+          }
+        }
+        
+        doc.fontSize(8).font("Helvetica").fillColor("#9ca3af")
+           .text(`Generated by DocuChat on ${new Date().toLocaleString()}`, {
+             align: "center"
+           });
         
         doc.end();
       } else {
