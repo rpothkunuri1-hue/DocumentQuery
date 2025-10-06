@@ -1,37 +1,107 @@
-import { type User, type InsertUser } from "@shared/schema";
+import {
+  type Document,
+  type InsertDocument,
+  type Conversation,
+  type InsertConversation,
+  type Message,
+  type InsertMessage,
+} from "@shared/schema";
 import { randomUUID } from "crypto";
 
-// modify the interface with any CRUD methods
-// you might need
-
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // Document methods
+  getDocuments(): Promise<Document[]>;
+  getDocument(id: string): Promise<Document | undefined>;
+  createDocument(doc: InsertDocument): Promise<Document>;
+  
+  // Conversation methods
+  getConversationByDocumentId(documentId: string): Promise<Conversation | undefined>;
+  createConversation(conv: InsertConversation): Promise<Conversation>;
+  
+  // Message methods
+  getMessages(conversationId: string): Promise<Message[]>;
+  createMessage(msg: InsertMessage): Promise<Message>;
+  updateMessage(id: string, content: string): Promise<Message | undefined>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private documents: Map<string, Document>;
+  private conversations: Map<string, Conversation>;
+  private messages: Map<string, Message>;
 
   constructor() {
-    this.users = new Map();
+    this.documents = new Map();
+    this.conversations = new Map();
+    this.messages = new Map();
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
+  // Document methods
+  async getDocuments(): Promise<Document[]> {
+    return Array.from(this.documents.values()).sort(
+      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async getDocument(id: string): Promise<Document | undefined> {
+    return this.documents.get(id);
+  }
+
+  async createDocument(insertDoc: InsertDocument): Promise<Document> {
     const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const doc: Document = {
+      ...insertDoc,
+      id,
+      uploadedAt: new Date(),
+    };
+    this.documents.set(id, doc);
+    return doc;
+  }
+
+  // Conversation methods
+  async getConversationByDocumentId(documentId: string): Promise<Conversation | undefined> {
+    return Array.from(this.conversations.values()).find(
+      (conv) => conv.documentId === documentId
+    );
+  }
+
+  async createConversation(insertConv: InsertConversation): Promise<Conversation> {
+    const id = randomUUID();
+    const conv: Conversation = {
+      ...insertConv,
+      id,
+      createdAt: new Date(),
+    };
+    this.conversations.set(id, conv);
+    return conv;
+  }
+
+  // Message methods
+  async getMessages(conversationId: string): Promise<Message[]> {
+    return Array.from(this.messages.values())
+      .filter((msg) => msg.conversationId === conversationId)
+      .sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+  }
+
+  async createMessage(insertMsg: InsertMessage): Promise<Message> {
+    const id = randomUUID();
+    const msg: Message = {
+      ...insertMsg,
+      id,
+      createdAt: new Date(),
+    };
+    this.messages.set(id, msg);
+    return msg;
+  }
+
+  async updateMessage(id: string, content: string): Promise<Message | undefined> {
+    const msg = this.messages.get(id);
+    if (!msg) return undefined;
+    
+    const updated = { ...msg, content };
+    this.messages.set(id, updated);
+    return updated;
   }
 }
 
