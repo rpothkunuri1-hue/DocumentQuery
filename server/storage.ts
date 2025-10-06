@@ -53,8 +53,14 @@ export class MemStorage implements IStorage {
   async createDocument(insertDoc: InsertDocument): Promise<Document> {
     const id = randomUUID();
     const doc: Document = {
-      ...insertDoc,
       id,
+      name: insertDoc.name,
+      type: insertDoc.type,
+      size: insertDoc.size,
+      content: insertDoc.content,
+      summary: insertDoc.summary ?? null,
+      briefSummary: insertDoc.briefSummary ?? null,
+      keyPoints: insertDoc.keyPoints ?? null,
       uploadedAt: new Date(),
     };
     this.documents.set(id, doc);
@@ -104,9 +110,9 @@ export class MemStorage implements IStorage {
   async createConversation(insertConv: InsertConversation): Promise<Conversation> {
     const id = randomUUID();
     const conv: Conversation = {
-      ...insertConv,
       id,
-      documentIds: insertConv.documentId ? [insertConv.documentId] : insertConv.documentIds || [],
+      documentId: insertConv.documentId ?? null,
+      documentIds: insertConv.documentId ? [insertConv.documentId] : insertConv.documentIds ?? null,
       createdAt: new Date(),
     };
     this.conversations.set(id, conv);
