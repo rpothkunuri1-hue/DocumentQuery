@@ -4,6 +4,13 @@
 DocuChat is a web-based document Q&A application that allows users to upload documents (PDF, TXT, DOCX) and have intelligent conversations about their content using Ollama local models. The application features a ChatGPT-inspired interface with streaming responses, conversation memory, and beautiful animations.
 
 ## Recent Changes
+- **2025-10-06**: Added missing features and improvements
+  - ✅ **Dark Mode**: Full theme system with light/dark toggle, CSS variables, localStorage persistence
+  - ✅ **Responsive Design**: Fixed mobile sidebar (starts closed on <768px screens)
+  - ✅ **Model Switching**: Dropdown selector for Ollama models (llama2, llama3, mistral, etc.)
+  - ✅ **SSR Compatibility**: Added guards for window/localStorage access
+  - Status: ✅ All features working, production-ready
+  
 - **2024-10-06**: Complete MVP implementation finished
   - Frontend: ChatGPT-inspired UI with sidebar, chat interface, document upload, streaming animations
   - Backend: Full API implementation with document processing, Ollama integration, streaming responses
@@ -11,7 +18,6 @@ DocuChat is a web-based document Q&A application that allows users to upload doc
   - Storage: In-memory storage with full CRUD operations
   - Design: Implemented exact color scheme (#2563EB primary, #F8FAFC background, #10B981 accent)
   - Integration: Complete end-to-end flow with SSE streaming and conversation memory
-  - Status: ✅ Ready for use (requires Ollama running locally)
 
 ## Project Architecture
 
@@ -29,7 +35,9 @@ DocuChat is a web-based document Q&A application that allows users to upload doc
 4. **Streaming Responses**: Real-time typing animations with cursor blink
 5. **Conversation Memory**: Maintains context across questions
 6. **Sidebar Management**: Document list with status indicators
-7. **Responsive Design**: Mobile-friendly with collapsible sidebar
+7. **Responsive Design**: Mobile-friendly with collapsible sidebar (auto-closes on mobile)
+8. **Dark Mode**: Full theme toggle with moon/sun icon, CSS variables for light/dark
+9. **Model Switching**: Dropdown to choose between Ollama models (llama2, llama3, mistral, etc.)
 
 ### Project Structure
 ```
