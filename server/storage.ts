@@ -17,7 +17,9 @@ export interface IStorage {
   
   // Conversation methods
   getConversationByDocumentId(documentId: string): Promise<Conversation | undefined>;
+  getConversation(id: string): Promise<Conversation | undefined>;
   createConversation(conv: InsertConversation): Promise<Conversation>;
+  createMultiDocConversation(data: { documentIds: string[] }): Promise<Conversation>;
   
   // Message methods
   getMessages(conversationId: string): Promise<Message[]>;
@@ -62,7 +64,7 @@ export class MemStorage implements IStorage {
     const deleted = this.documents.delete(id);
     if (deleted) {
       const conversations = Array.from(this.conversations.values())
-        .filter(conv => conv.documentId === id);
+        .filter(conv => conv.documentId === id || (conv.documentIds && conv.documentIds.includes(id)));
       
       for (const conv of conversations) {
         const messages = Array.from(this.messages.values())
@@ -85,11 +87,28 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getConversation(id: string): Promise<Conversation | undefined> {
+    return this.conversations.get(id);
+  }
+
   async createConversation(insertConv: InsertConversation): Promise<Conversation> {
     const id = randomUUID();
     const conv: Conversation = {
       ...insertConv,
       id,
+      documentIds: insertConv.documentId ? [insertConv.documentId] : insertConv.documentIds || [],
+      createdAt: new Date(),
+    };
+    this.conversations.set(id, conv);
+    return conv;
+  }
+
+  async createMultiDocConversation(data: { documentIds: string[] }): Promise<Conversation> {
+    const id = randomUUID();
+    const conv: Conversation = {
+      id,
+      documentId: null,
+      documentIds: data.documentIds,
       createdAt: new Date(),
     };
     this.conversations.set(id, conv);

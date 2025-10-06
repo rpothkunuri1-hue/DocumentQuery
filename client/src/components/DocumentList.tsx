@@ -9,11 +9,20 @@ interface Document {
 interface Props {
   documents: Document[];
   activeDocumentId: string | null;
+  selectedDocumentIds?: string[];
+  multiDocMode?: boolean;
   onDocumentSelect: (id: string) => void;
   onDocumentDelete: (id: string) => void;
 }
 
-export default function DocumentList({ documents, activeDocumentId, onDocumentSelect, onDocumentDelete }: Props) {
+export default function DocumentList({ 
+  documents, 
+  activeDocumentId, 
+  selectedDocumentIds = [],
+  multiDocMode = false,
+  onDocumentSelect, 
+  onDocumentDelete 
+}: Props) {
   if (documents.length === 0) {
     return (
       <div className="documents-list">
@@ -31,27 +40,43 @@ export default function DocumentList({ documents, activeDocumentId, onDocumentSe
 
   return (
     <div className="documents-list">
-      {documents.map(doc => (
-        <div
-          key={doc.id}
-          className={`document-item ${doc.id === activeDocumentId ? 'active' : ''}`}
-          onClick={() => onDocumentSelect(doc.id)}
-          data-testid={`document-item-${doc.id}`}
-        >
-          <div className="document-info">
-            <h3>{doc.name}</h3>
-            <p>{new Date(doc.uploadedAt).toLocaleDateString()}</p>
-          </div>
-          <button
-            className="btn-delete"
-            onClick={(e) => handleDelete(e, doc.id)}
-            title="Delete document"
-            data-testid={`button-delete-${doc.id}`}
+      {documents.map(doc => {
+        const isActive = multiDocMode 
+          ? selectedDocumentIds.includes(doc.id)
+          : doc.id === activeDocumentId;
+        
+        return (
+          <div
+            key={doc.id}
+            className={`document-item ${isActive ? 'active' : ''}`}
+            onClick={() => onDocumentSelect(doc.id)}
+            data-testid={`document-item-${doc.id}`}
           >
-            🗑️
-          </button>
-        </div>
-      ))}
+            {multiDocMode && (
+              <div className="document-checkbox">
+                <input 
+                  type="checkbox" 
+                  checked={selectedDocumentIds.includes(doc.id)}
+                  onChange={() => {}}
+                  data-testid={`checkbox-document-${doc.id}`}
+                />
+              </div>
+            )}
+            <div className="document-info">
+              <h3>{doc.name}</h3>
+              <p>{new Date(doc.uploadedAt).toLocaleDateString()}</p>
+            </div>
+            <button
+              className="btn-delete"
+              onClick={(e) => handleDelete(e, doc.id)}
+              title="Delete document"
+              data-testid={`button-delete-${doc.id}`}
+            >
+              🗑️
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
