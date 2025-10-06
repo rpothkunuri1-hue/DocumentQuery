@@ -8,6 +8,7 @@ import type { Message, Document, Conversation } from "@shared/schema";
 import { MessageBubble } from "./message-bubble";
 import { TypingIndicator } from "./typing-indicator";
 import { useToast } from "@/hooks/use-toast";
+import { getSelectedModel } from "./settings-dialog";
 
 interface ChatInterfaceProps {
   documentId: string;
@@ -37,6 +38,7 @@ export function ChatInterface({ documentId }: ChatInterfaceProps) {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (question: string) => {
+      const model = getSelectedModel();
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -44,6 +46,7 @@ export function ChatInterface({ documentId }: ChatInterfaceProps) {
           documentId,
           conversationId: conversation?.id,
           question,
+          model,
         }),
       });
 
@@ -164,19 +167,19 @@ export function ChatInterface({ documentId }: ChatInterfaceProps) {
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      <div className="border-b border-border px-6 py-4 bg-card">
-        <div className="flex items-center gap-3">
-          <FileText className="h-5 w-5 text-primary" />
-          <div>
-            <h2 className="font-semibold" data-testid="text-document-title">{document.name}</h2>
-            <p className="text-xs text-muted-foreground">
+      <div className="border-b border-border px-3 sm:px-6 py-3 sm:py-4 bg-card">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+          <div className="min-w-0 flex-1">
+            <h2 className="font-semibold text-sm sm:text-base truncate" data-testid="text-document-title">{document.name}</h2>
+            <p className="text-xs text-muted-foreground hidden sm:block">
               Ask questions about this document
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -211,15 +214,15 @@ export function ChatInterface({ documentId }: ChatInterfaceProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t border-border bg-card/50 backdrop-blur-sm px-6 py-4">
-        <form onSubmit={handleSubmit} className="flex gap-3">
+      <div className="border-t border-border bg-card/50 backdrop-blur-sm px-3 sm:px-6 py-3 sm:py-4">
+        <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3">
           <Textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask a question about this document..."
-            className="resize-none min-h-[60px] max-h-32"
+            placeholder="Ask a question..."
+            className="resize-none min-h-[50px] sm:min-h-[60px] max-h-32 text-sm sm:text-base"
             disabled={isStreaming}
             data-testid="input-chat-message"
           />
@@ -227,10 +230,10 @@ export function ChatInterface({ documentId }: ChatInterfaceProps) {
             type="submit"
             size="icon"
             disabled={!input.trim() || isStreaming}
-            className="rounded-full h-[60px] w-[60px] shrink-0"
+            className="rounded-full h-[50px] w-[50px] sm:h-[60px] sm:w-[60px] shrink-0"
             data-testid="button-send-message"
           >
-            <Send className="h-5 w-5" />
+            <Send className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
         </form>
       </div>

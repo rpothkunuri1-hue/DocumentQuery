@@ -115,10 +115,10 @@ export function DocumentUpload({ onUploadComplete, onClose }: DocumentUploadProp
   };
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-card border border-card-border rounded-xl shadow-lg max-w-lg w-full p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold">Upload Document</h2>
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-card border border-card-border rounded-xl shadow-lg max-w-lg w-full p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-semibold">Upload Document</h2>
           <Button
             variant="ghost"
             size="icon"
@@ -134,12 +134,12 @@ export function DocumentUpload({ onUploadComplete, onClose }: DocumentUploadProp
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={`
-            border-2 border-dashed rounded-xl p-12 text-center transition-all
+            border-2 border-dashed rounded-xl p-6 sm:p-12 text-center transition-all
             ${isDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}
           `}
           data-testid="dropzone-upload"
         >
-          <div className={`mb-4 flex justify-center ${file ? "text-accent" : "text-muted-foreground"}`}>
+          <div className={`mb-3 sm:mb-4 flex justify-center ${file ? "text-accent" : "text-muted-foreground"}`}>
             {getFileIcon()}
           </div>
           

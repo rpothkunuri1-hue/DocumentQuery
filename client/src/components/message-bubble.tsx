@@ -35,41 +35,41 @@ export function MessageBubble({ message, isStreaming = false }: MessageBubblePro
 
   return (
     <div
-      className={`flex gap-4 message-enter ${isUser ? "justify-end" : "justify-start"}`}
+      className={`flex gap-2 sm:gap-4 message-enter ${isUser ? "justify-end" : "justify-start"}`}
       data-testid={`message-${message.id}`}
     >
       {!isUser && (
         <div className="shrink-0">
-          <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-            <Bot className="h-4 w-4 text-primary-foreground" />
+          <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-primary flex items-center justify-center">
+            <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary-foreground" />
           </div>
         </div>
       )}
       
-      <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-3xl`}>
+      <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} max-w-[85%] sm:max-w-3xl`}>
         <div
           className={`
-            rounded-2xl px-4 py-3
+            rounded-2xl px-3 py-2 sm:px-4 sm:py-3
             ${isUser 
               ? "bg-card border border-card-border" 
               : "bg-secondary"
             }
           `}
         >
-          <p className="text-base whitespace-pre-wrap break-words" data-testid={`text-message-content-${message.id}`}>
+          <p className="text-sm sm:text-base whitespace-pre-wrap break-words" data-testid={`text-message-content-${message.id}`}>
             {displayedContent}
             {showCursor && <span className="cursor-blink ml-0.5">|</span>}
           </p>
         </div>
-        <span className="text-xs text-muted-foreground mt-1">
+        <span className="text-xs text-muted-foreground mt-1 px-1">
           {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
         </span>
       </div>
 
       {isUser && (
         <div className="shrink-0">
-          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-            <User className="h-4 w-4 text-muted-foreground" />
+          <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-muted flex items-center justify-center">
+            <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
           </div>
         </div>
       )}

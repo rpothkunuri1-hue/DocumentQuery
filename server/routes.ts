@@ -117,7 +117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chat endpoint with streaming
   app.post("/api/chat", async (req, res) => {
     try {
-      const { documentId, conversationId, question } = req.body;
+      const { documentId, conversationId, question, model: requestModel } = req.body;
 
       if (!question) {
         return res.status(400).json({ error: "Question is required" });
@@ -161,7 +161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.write(`data: ${JSON.stringify({ type: "message_id", messageId: assistantMessage.id })}\n\n`);
 
       const ollamaUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
-      const model = process.env.OLLAMA_MODEL || "llama2";
+      const model = requestModel || process.env.OLLAMA_MODEL || "llama2";
 
       const prompt = `You are a helpful assistant answering questions about a document. Here is the document content:
 
