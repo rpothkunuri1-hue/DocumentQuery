@@ -3,6 +3,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
+from app.routes import router
+from app.init_db import init_database
 
 app = FastAPI(title="DocuChat API")
 
@@ -14,6 +16,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    init_database()
+
+# Include API routes
+app.include_router(router)
 
 @app.get("/")
 async def root():

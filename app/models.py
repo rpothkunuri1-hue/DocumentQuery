@@ -29,7 +29,7 @@ class DocumentChunk(Base):
     content = Column(Text, nullable=False)
     chunk_index = Column("chunk_index", Integer, nullable=False)
     embedding = Column(Text)
-    metadata = Column(JSON)
+    chunk_metadata = Column("metadata", JSON)
     created_at = Column("created_at", TIMESTAMP, server_default=func.now(), nullable=False)
 
 class Conversation(Base):
