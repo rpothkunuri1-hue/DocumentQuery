@@ -342,16 +342,40 @@ Provide the response in JSON format: { "summary": "...", "briefSummary": "...", 
       const ollamaUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
       const model = requestModel || process.env.OLLAMA_MODEL || "llama2";
 
-      const prompt = `You are a helpful assistant answering questions about a document. Here is the document content:
+      // Validate document content
+      if (!document.content || document.content.trim().length < 10) {
+        const refusalMessage = "I cannot answer questions about this document because it appears to be empty or contains insufficient content. Please upload a document with readable text.";
+        await storage.updateMessage(assistantMessage.id, { content: refusalMessage });
+        res.write(`data: ${JSON.stringify({ type: "token", content: refusalMessage })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+        res.end();
+        return;
+      }
 
+      const prompt = `SYSTEM INSTRUCTIONS:
+You are a document analysis assistant. Your ONLY role is to answer questions based strictly on the content of the provided document.
+
+STRICT RULES:
+1. ONLY answer questions that can be answered using information found in the document below
+2. If a question cannot be answered from the document, politely decline and explain that the information is not in the document
+3. ALWAYS cite specific passages or sections from the document when answering
+4. DO NOT use external knowledge, general facts, or information not present in the document
+5. If the question is unclear or ambiguous, ask the user to clarify before attempting to answer
+6. If multiple interpretations are possible based on the document, present all relevant perspectives found in the document
+
+DOCUMENT CONTENT:
 ${document.content}
 
-Previous conversation:
+CONVERSATION HISTORY:
 ${contextMessages.map((m) => `${m.role}: ${m.content}`).join("\n")}
 
-User question: ${question}
+USER QUESTION: ${question}
 
-Please provide a helpful and accurate answer based on the document content.`;
+RESPONSE INSTRUCTIONS:
+- Answer ONLY using information from the document above
+- Quote or reference specific parts of the document in your response
+- If the answer is not in the document, respond with: "I cannot answer this question because the information is not present in the provided document. Please ask a question about the document's content."
+- Be helpful and thorough, but stay within the document's scope`;
 
       const ollamaResponse = await fetch(`${ollamaUrl}/api/generate`, {
         method: "POST",
@@ -389,6 +413,29 @@ Please provide a helpful and accurate answer based on the document content.`;
             console.error("Failed to parse Ollama response line:", line);
           }
         }
+      }
+
+      // Post-response verification: Check if response references the document
+      const hasDocumentReference = fullResponse.length > 50 && (
+        fullResponse.toLowerCase().includes("document") ||
+        fullResponse.toLowerCase().includes("according to") ||
+        fullResponse.toLowerCase().includes("the text") ||
+        fullResponse.toLowerCase().includes("states that") ||
+        fullResponse.toLowerCase().includes("mentions") ||
+        /["'].*["']/.test(fullResponse) // Contains quoted text
+      );
+
+      const isRefusal = fullResponse.toLowerCase().includes("cannot answer") ||
+        fullResponse.toLowerCase().includes("not present in") ||
+        fullResponse.toLowerCase().includes("not found in") ||
+        fullResponse.toLowerCase().includes("information is not");
+
+      // If response doesn't reference document and isn't a refusal, add warning
+      if (!hasDocumentReference && !isRefusal && fullResponse.length > 20) {
+        const warningMessage = "\n\n⚠️ Note: This response may not be based solely on the document content. Please verify the information against the source document.";
+        fullResponse += warningMessage;
+        res.write(`data: ${JSON.stringify({ type: "token", content: warningMessage })}\n\n`);
+        console.warn(`Response may be out of scope for document: ${document.id}`);
       }
 
       await storage.updateMessage(assistantMessage.id, { content: fullResponse });
@@ -454,20 +501,73 @@ Please provide a helpful and accurate answer based on the document content.`;
       const ollamaUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
       const model = requestModel || process.env.OLLAMA_MODEL || "llama2";
 
-      const combinedContent = validDocuments
-        .map((doc: any, idx: number) => `Document ${idx + 1} (${doc.name}):\n${doc.content}`)
+      // Validate document content and warn about excluded documents
+      const validContentDocuments = validDocuments.filter((doc: any) => 
+        doc.content && doc.content.trim().length >= 10
+      );
+      
+      const excludedDocs = validDocuments.filter((doc: any) => 
+        !doc.content || doc.content.trim().length < 10
+      );
+      
+      if (validContentDocuments.length === 0) {
+        const refusalMessage = "I cannot answer questions about these documents because they appear to be empty or contain insufficient content. Please upload documents with readable text.";
+        await storage.updateMessage(assistantMessage.id, { content: refusalMessage });
+        res.write(`data: ${JSON.stringify({ type: "token", content: refusalMessage })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
+        res.end();
+        return;
+      }
+      
+      // Warn if some documents were excluded
+      let warningPrefix = "";
+      if (excludedDocs.length > 0) {
+        const excludedNames = excludedDocs.map((doc: any) => `"${doc.name}"`).join(", ");
+        warningPrefix = `⚠️ Note: ${excludedDocs.length} document(s) were excluded due to insufficient content: ${excludedNames}\n\nAnalyzing remaining ${validContentDocuments.length} document(s):\n\n`;
+        res.write(`data: ${JSON.stringify({ type: "token", content: warningPrefix })}\n\n`);
+        console.warn(`Excluded ${excludedDocs.length} documents from multi-doc chat:`, excludedNames);
+      }
+
+      const documentList = validContentDocuments
+        .map((doc: any, idx: number) => `[Document ${idx + 1}: "${doc.name}"]`)
+        .join(", ");
+
+      const combinedContent = validContentDocuments
+        .map((doc: any, idx: number) => `=== DOCUMENT ${idx + 1}: "${doc.name}" ===
+${doc.content}
+=== END OF DOCUMENT ${idx + 1} ===`)
         .join("\n\n");
 
-      const prompt = `You are a helpful assistant answering questions about multiple documents. Here are the documents:
+      const prompt = `SYSTEM INSTRUCTIONS:
+You are a multi-document analysis assistant. Your ONLY role is to answer questions based strictly on the content of the provided documents.
 
+STRICT RULES:
+1. ONLY answer questions using information found in the documents below
+2. ALWAYS specify which document(s) you're referencing (use document numbers and names)
+3. When comparing documents, only compare information that is actually present in the documents
+4. DO NOT make assumptions or use external knowledge not found in the documents
+5. If a question cannot be answered from the documents, politely decline and explain what's missing
+6. If documents contradict each other, acknowledge both perspectives and cite the specific documents
+7. When information spans multiple documents, clearly attribute each piece of information to its source
+
+AVAILABLE DOCUMENTS:
+${documentList}
+
+DOCUMENT CONTENTS:
 ${combinedContent}
 
-Previous conversation:
+CONVERSATION HISTORY:
 ${contextMessages.map((m) => `${m.role}: ${m.content}`).join("\n")}
 
-User question: ${question}
+USER QUESTION: ${question}
 
-Please provide a helpful answer based on the documents. When referencing information, mention which document it came from.`;
+RESPONSE INSTRUCTIONS:
+- Answer ONLY using information from the documents above
+- Always cite which document you're referencing (e.g., "According to Document 1 (filename.pdf)...")
+- If comparing documents, only compare information that exists in both
+- If the answer is not in any document, respond with: "I cannot answer this question because the information is not present in the provided documents. Please ask a question about the documents' content."
+- Be thorough but stay within the documents' scope`;
+
 
       const ollamaResponse = await fetch(`${ollamaUrl}/api/generate`, {
         method: "POST",
@@ -507,7 +607,36 @@ Please provide a helpful answer based on the documents. When referencing informa
         }
       }
 
-      await storage.updateMessage(assistantMessage.id, { content: fullResponse });
+      // Post-response verification: Check if response references the documents
+      const hasDocumentReference = fullResponse.length > 50 && (
+        fullResponse.toLowerCase().includes("document") ||
+        /document\s+\d+/.test(fullResponse.toLowerCase()) || // "document 1", etc.
+        fullResponse.toLowerCase().includes("according to") ||
+        fullResponse.toLowerCase().includes("the text") ||
+        fullResponse.toLowerCase().includes("states that") ||
+        fullResponse.toLowerCase().includes("mentions") ||
+        validContentDocuments.some((doc: any) => 
+          fullResponse.toLowerCase().includes(doc.name.toLowerCase().substring(0, 15))
+        ) ||
+        /["'].*["']/.test(fullResponse) // Contains quoted text
+      );
+
+      const isRefusal = fullResponse.toLowerCase().includes("cannot answer") ||
+        fullResponse.toLowerCase().includes("not present in") ||
+        fullResponse.toLowerCase().includes("not found in") ||
+        fullResponse.toLowerCase().includes("information is not");
+
+      // If response doesn't reference documents and isn't a refusal, add warning
+      if (!hasDocumentReference && !isRefusal && fullResponse.length > 20) {
+        const warningMessage = "\n\n⚠️ Note: This response may not be based solely on the provided documents. Please verify the information against the source documents.";
+        fullResponse += warningMessage;
+        res.write(`data: ${JSON.stringify({ type: "token", content: warningMessage })}\n\n`);
+        console.warn(`Response may be out of scope for multi-document chat:`, documentIds);
+      }
+
+      // Prepend any document exclusion warnings to the final stored message
+      const finalMessage = warningPrefix + fullResponse;
+      await storage.updateMessage(assistantMessage.id, { content: finalMessage });
 
       res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
       res.end();
