@@ -13,6 +13,7 @@ export interface IStorage {
   getDocuments(): Promise<Document[]>;
   getDocument(id: string): Promise<Document | undefined>;
   createDocument(doc: InsertDocument): Promise<Document>;
+  updateDocument(id: string, updates: Partial<Document>): Promise<Document | undefined>;
   deleteDocument(id: string): Promise<boolean>;
   
   // Conversation methods
@@ -58,6 +59,15 @@ export class MemStorage implements IStorage {
     };
     this.documents.set(id, doc);
     return doc;
+  }
+
+  async updateDocument(id: string, updates: Partial<Document>): Promise<Document | undefined> {
+    const doc = this.documents.get(id);
+    if (!doc) return undefined;
+    
+    const updated = { ...doc, ...updates };
+    this.documents.set(id, updated);
+    return updated;
   }
 
   async deleteDocument(id: string): Promise<boolean> {

@@ -9,6 +9,9 @@ export const documents = pgTable("documents", {
   type: text("type").notNull(),
   size: integer("size").notNull(),
   content: text("content").notNull(),
+  summary: text("summary"),
+  briefSummary: text("brief_summary"),
+  keyPoints: text("key_points").array(),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
 

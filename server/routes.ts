@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import multer from "multer";
 import mammoth from "mammoth";
 import PDFDocument from "pdfkit";
+import * as pdfParse from "pdf-parse";
 import { insertDocumentSchema } from "@shared/schema";
 
 const upload = multer({
@@ -12,8 +13,7 @@ const upload = multer({
 });
 
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  const pdfParse = (await import("pdf-parse")).default;
-  const data = await pdfParse(buffer);
+  const data = await (pdfParse as any).default(buffer);
   return data.text;
 }
 
@@ -284,7 +284,7 @@ Please provide a helpful and accurate answer based on the document content.`;
         }
       }
 
-      await storage.updateMessage(assistantMessage.id, { content: fullResponse });
+      await storage.updateMessage(assistantMessage.id, fullResponse);
 
       res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
       res.end();
@@ -400,7 +400,7 @@ Please provide a helpful answer based on the documents. When referencing informa
         }
       }
 
-      await storage.updateMessage(assistantMessage.id, { content: fullResponse });
+      await storage.updateMessage(assistantMessage.id, fullResponse);
 
       res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
       res.end();
@@ -420,7 +420,7 @@ Please provide a helpful answer based on the documents. When referencing informa
 
       const messages = await storage.getMessages(conversation.id);
       const documents = await Promise.all(
-        conversation.documentIds.map(id => storage.getDocument(id))
+        (conversation.documentIds || []).map(id => storage.getDocument(id))
       );
 
       const format = (req.query.format as string) || "json";
@@ -441,13 +441,6 @@ Please provide a helpful answer based on the documents. When referencing informa
         for (const msg of messages) {
           markdown += `### ${msg.role === "user" ? "User" : "Assistant"}\n\n`;
           markdown += `${msg.content}\n\n`;
-          if (msg.citations && msg.citations.length > 0) {
-            markdown += `**Sources:**\n`;
-            msg.citations.forEach((c: any) => {
-              markdown += `- ${c.documentName}: "${c.excerpt}"\n`;
-            });
-            markdown += `\n`;
-          }
         }
 
         res.setHeader("Content-Type", "text/markdown");
@@ -471,15 +464,6 @@ Please provide a helpful answer based on the documents. When referencing informa
           doc.fontSize(14).fillColor("#2563eb").text(msg.role === "user" ? "User" : "Assistant");
           doc.fontSize(11).fillColor("black").text(msg.content, { align: "left" });
           doc.moveDown();
-          
-          if (msg.citations && msg.citations.length > 0) {
-            doc.fontSize(10).fillColor("#6b7280").text("Sources:");
-            msg.citations.forEach((c: any) => {
-              doc.fontSize(9).text(`• ${c.documentName}: "${c.excerpt}"`);
-            });
-            doc.fillColor("black");
-          }
-          
           doc.moveDown(1.5);
         }
         
