@@ -39,6 +39,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [progressMetrics, setProgressMetrics] = useState<ProgressMetrics | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const isMultiDoc = documents.length > 1;
   const documentIds = documents.map(doc => doc.id);
@@ -82,6 +83,15 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
     }
   };
 
+  const stopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsStreaming(false);
+      setProgressMetrics(null);
+    }
+  };
+
   const sendMessage = async (e: React.FormEvent | React.KeyboardEvent) => {
     e.preventDefault();
     if (!input.trim() || isStreaming || !conversationId) return;
@@ -98,6 +108,8 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
     };
     setMessages(prev => [...prev, tempUserMessage]);
 
+    abortControllerRef.current = new AbortController();
+
     try {
       const endpoint = isMultiDoc ? '/api/chat/multi' : '/api/chat';
       const requestBody = isMultiDoc
@@ -108,6 +120,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) throw new Error('Failed to send message');
@@ -170,11 +183,17 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
       } finally {
         setIsStreaming(false);
         setProgressMetrics(null);
+        abortControllerRef.current = null;
       }
-    } catch (error) {
-      console.error('Failed to send message:', error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Generation stopped by user');
+      } else {
+        console.error('Failed to send message:', error);
+      }
       setIsStreaming(false);
       setProgressMetrics(null);
+      abortControllerRef.current = null;
     }
   };
 
@@ -330,9 +349,25 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
           disabled={isStreaming}
           data-testid="input-question"
         />
-        <button type="submit" className="btn-send" disabled={!input.trim() || isStreaming} data-testid="button-send">
-          ➤
-        </button>
+        {isStreaming ? (
+          <button 
+            type="button" 
+            className="btn-send btn-stop" 
+            onClick={stopGeneration}
+            data-testid="button-stop"
+          >
+            ⬛
+          </button>
+        ) : (
+          <button 
+            type="submit" 
+            className="btn-send" 
+            disabled={!input.trim()} 
+            data-testid="button-send"
+          >
+            ➤
+          </button>
+        )}
       </form>
     </div>
   );
