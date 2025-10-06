@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Send, StopCircle, Copy, RotateCcw, Edit2, ThumbsUp, ThumbsDown, Trash2, Check } from 'lucide-react';
 
 interface Document {
   id: string;
@@ -32,12 +33,20 @@ interface ProgressMetrics {
   promptEvalCount?: number;
 }
 
+interface MessageRating {
+  [messageId: string]: 'up' | 'down' | null;
+}
+
 export default function ChatInterface({ documents, selectedModel, onRemoveDocument }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [progressMetrics, setProgressMetrics] = useState<ProgressMetrics | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [messageRatings, setMessageRatings] = useState<MessageRating>({});
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -92,12 +101,14 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
     }
   };
 
-  const sendMessage = async (e: React.FormEvent | React.KeyboardEvent) => {
+  const sendMessage = async (e: React.FormEvent | React.KeyboardEvent, content?: string) => {
     e.preventDefault();
-    if (!input.trim() || isStreaming || !conversationId) return;
+    const question = content || input.trim();
+    if (!question || isStreaming || !conversationId) return;
 
-    const question = input.trim();
-    setInput('');
+    if (!content) {
+      setInput('');
+    }
     setIsStreaming(true);
 
     const tempUserMessage: Message = {
@@ -197,6 +208,73 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
     }
   };
 
+  const handleCopyMessage = async (content: string, messageId: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageId(messageId);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      alert('Failed to copy message to clipboard.');
+    }
+  };
+
+  const handleRegenerateResponse = async (messageId: string) => {
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    if (messageIndex === -1 || messageIndex === 0) return;
+
+    const previousUserMessage = messages[messageIndex - 1];
+    if (previousUserMessage.role !== 'user') return;
+
+    setMessages(prev => prev.filter((_, idx) => idx < messageIndex));
+
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    await sendMessage(fakeEvent, previousUserMessage.content);
+  };
+
+  const handleStartEdit = (message: Message) => {
+    setEditingMessageId(message.id);
+    setEditContent(message.content);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+
+  const handleSaveEdit = async (messageId: string) => {
+    if (!editContent.trim()) return;
+
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    if (messageIndex === -1) return;
+
+    setMessages(prev => prev.map(m => 
+      m.id === messageId ? { ...m, content: editContent.trim() } : m
+    ));
+
+    setMessages(prev => prev.filter((_, idx) => idx <= messageIndex));
+
+    setEditingMessageId(null);
+    setEditContent('');
+
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    await sendMessage(fakeEvent, editContent.trim());
+  };
+
+  const handleRateMessage = (messageId: string, rating: 'up' | 'down') => {
+    setMessageRatings(prev => ({
+      ...prev,
+      [messageId]: prev[messageId] === rating ? null : rating,
+    }));
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    if (messageIndex === -1) return;
+
+    setMessages(prev => prev.filter((_, idx) => idx < messageIndex));
+  };
+
   const handleExport = async (format: 'pdf' | 'markdown' | 'json') => {
     if (!conversationId) return;
 
@@ -229,6 +307,14 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
   const subHeaderText = isMultiDoc
     ? `Ask questions across multiple documents • Using ${selectedModel}`
     : `Ask questions about this document • Using ${selectedModel}`;
+
+  const LoadingDots = () => (
+    <div className="flex items-center gap-1" data-testid="loading-animation">
+      <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
+      <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '150ms' }}></span>
+      <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
+    </div>
+  );
 
   return (
     <div className="chat-view">
@@ -300,12 +386,121 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
             </p>
           </div>
         ) : (
-          messages.map(message => (
-            <div key={message.id} className={`message ${message.role}`}>
-              <div className="message-avatar">
+          messages.map((message, index) => (
+            <div key={message.id} className={`message ${message.role}`} data-testid={`message-${message.role}-${message.id}`}>
+              <div className="message-avatar" data-testid={`avatar-${message.role}`}>
                 {message.role === 'user' ? 'U' : 'AI'}
               </div>
-              <div className="message-content">{message.content}</div>
+              <div className="message-body">
+                {editingMessageId === message.id ? (
+                  <div className="message-edit" data-testid={`edit-mode-${message.id}`}>
+                    <textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="message-edit-input"
+                      rows={3}
+                      data-testid={`textarea-edit-${message.id}`}
+                    />
+                    <div className="message-edit-actions">
+                      <button
+                        onClick={() => handleSaveEdit(message.id)}
+                        className="btn-message-action btn-save"
+                        disabled={!editContent.trim()}
+                        data-testid={`button-save-edit-${message.id}`}
+                        title="Save and regenerate"
+                      >
+                        <Check className="w-4 h-4" />
+                        Save & Regenerate
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        className="btn-message-action btn-cancel"
+                        data-testid={`button-cancel-edit-${message.id}`}
+                        title="Cancel editing"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="message-content" data-testid={`content-${message.id}`}>
+                      {message.content || (message.role === 'assistant' && <LoadingDots />)}
+                    </div>
+                    
+                    {message.content && (
+                      <div className="message-actions" data-testid={`actions-${message.id}`}>
+                        {message.role === 'assistant' && (
+                          <>
+                            <button
+                              onClick={() => handleCopyMessage(message.content, message.id)}
+                              className="btn-message-action"
+                              title="Copy message"
+                              data-testid={`button-copy-${message.id}`}
+                            >
+                              {copiedMessageId === message.id ? (
+                                <Check className="w-4 h-4 text-green-500" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </button>
+                            
+                            <button
+                              onClick={() => handleRegenerateResponse(message.id)}
+                              className="btn-message-action"
+                              disabled={isStreaming}
+                              title="Regenerate response"
+                              data-testid={`button-regenerate-${message.id}`}
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                            
+                            <button
+                              onClick={() => handleRateMessage(message.id, 'up')}
+                              className={`btn-message-action ${messageRatings[message.id] === 'up' ? 'active' : ''}`}
+                              title="Rate positively"
+                              data-testid={`button-thumbs-up-${message.id}`}
+                            >
+                              <ThumbsUp className={`w-4 h-4 ${messageRatings[message.id] === 'up' ? 'fill-current' : ''}`} />
+                            </button>
+                            
+                            <button
+                              onClick={() => handleRateMessage(message.id, 'down')}
+                              className={`btn-message-action ${messageRatings[message.id] === 'down' ? 'active' : ''}`}
+                              title="Rate negatively"
+                              data-testid={`button-thumbs-down-${message.id}`}
+                            >
+                              <ThumbsDown className={`w-4 h-4 ${messageRatings[message.id] === 'down' ? 'fill-current' : ''}`} />
+                            </button>
+                          </>
+                        )}
+                        
+                        {message.role === 'user' && (
+                          <button
+                            onClick={() => handleStartEdit(message)}
+                            className="btn-message-action"
+                            disabled={isStreaming}
+                            title="Edit message"
+                            data-testid={`button-edit-${message.id}`}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        
+                        <button
+                          onClick={() => handleDeleteMessage(message.id)}
+                          className="btn-message-action btn-delete"
+                          disabled={isStreaming}
+                          title="Delete message and responses"
+                          data-testid={`button-delete-${message.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           ))
         )}
@@ -356,7 +551,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
             onClick={stopGeneration}
             data-testid="button-stop"
           >
-            ⬛
+            <StopCircle className="w-5 h-5" />
           </button>
         ) : (
           <button 
@@ -365,7 +560,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
             disabled={!input.trim()} 
             data-testid="button-send"
           >
-            ➤
+            <Send className="w-5 h-5" />
           </button>
         )}
       </form>

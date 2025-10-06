@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Menu, Upload, Sun, Moon, Users, X } from 'lucide-react';
 import DocumentList from './components/DocumentList';
 import ChatInterface from './components/ChatInterface';
 import UploadModal from './components/UploadModal';
@@ -182,19 +183,24 @@ export default function App() {
           <h2>Documents</h2>
           <div className="sidebar-header-actions">
             <button 
-              className={`btn ${multiDocMode ? 'btn-secondary' : 'btn-ghost'}`}
+              className={`btn btn-icon-text ${multiDocMode ? 'btn-secondary active' : 'btn-ghost'}`}
               onClick={toggleMultiDocMode}
               data-testid="button-multi-doc"
               title={multiDocMode ? 'Exit multi-document mode' : 'Enable multi-document mode'}
             >
-              {multiDocMode ? '✓ Multi' : 'Multi'}
+              <Users className="icon" size={16} />
+              <span>{multiDocMode ? 'Multi' : 'Multi'}</span>
+              {multiDocMode && selectedDocumentIds.length > 0 && (
+                <span className="badge">{selectedDocumentIds.length}</span>
+              )}
             </button>
             <button 
-              className="btn btn-primary" 
+              className="btn btn-primary btn-icon-text" 
               onClick={() => setShowUpload(true)}
               data-testid="button-upload"
             >
-              + Upload
+              <Upload size={16} className="icon" />
+              <span>Upload</span>
             </button>
           </div>
         </div>
@@ -211,12 +217,12 @@ export default function App() {
       <main className="main-content">
         <header className="header">
           <button 
-            className="btn-icon" 
+            className="btn-icon hamburger-btn" 
             onClick={() => setSidebarOpen(!sidebarOpen)}
             data-testid="button-menu"
             title="Toggle sidebar"
           >
-            ☰
+            <Menu size={24} />
           </button>
           <h1>DocuChat</h1>
           <div className="header-actions">
@@ -252,7 +258,7 @@ export default function App() {
               title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
               data-testid="button-theme"
             >
-              {theme === 'light' ? '🌙' : '☀️'}
+              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
             </button>
           </div>
         </header>
@@ -265,7 +271,7 @@ export default function App() {
               onClick={() => setError(null)}
               data-testid="button-error-close"
             >
-              ✕
+              <X size={16} />
             </button>
           </div>
         )}
@@ -285,9 +291,10 @@ export default function App() {
               <h2>Welcome to DocuChat</h2>
               <p>Upload a document to start having intelligent conversations about its content.</p>
               <div className="features">
-                <p>✓ Support for PDF, TXT, and DOCX files</p>
+                <p>✓ Support for PDF, TXT, DOCX, CSV, MD, HTML, and more</p>
                 <p>✓ Real-time streaming responses</p>
                 <p>✓ Conversation history and memory</p>
+                <p>✓ Multi-document chat mode</p>
               </div>
             </div>
           </div>
