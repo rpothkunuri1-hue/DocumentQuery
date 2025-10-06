@@ -1,4 +1,4 @@
-import React from 'react';
+import type { MouseEvent } from 'react';
 
 interface Document {
   id: string;
@@ -31,7 +31,7 @@ export default function DocumentList({
     );
   }
 
-  const handleDelete = (e: React.MouseEvent, id: string) => {
+  const handleDelete = (e: MouseEvent, id: string) => {
     e.stopPropagation();
     if (confirm('Are you sure you want to delete this document? This will also delete all associated conversations.')) {
       onDocumentDelete(id);

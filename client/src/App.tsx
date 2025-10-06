@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Route, Link, useLocation } from 'wouter';
 import { Menu, Upload, Sun, Moon, Users, X, Folder, GitCompare, Clock, MessageSquare } from 'lucide-react';
 import DocumentList from './components/DocumentList';
