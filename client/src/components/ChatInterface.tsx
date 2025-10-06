@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type FormEvent, type KeyboardEvent } from 'react';
 import { Send, StopCircle, Copy, RotateCcw, Edit2, ThumbsUp, ThumbsDown, Trash2, Check } from 'lucide-react';
 
 interface Document {
@@ -101,7 +101,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
     }
   };
 
-  const sendMessage = async (e: React.FormEvent | React.KeyboardEvent, content?: string) => {
+  const sendMessage = async (e: FormEvent | KeyboardEvent, content?: string) => {
     e.preventDefault();
     const question = content || input.trim();
     if (!question || isStreaming || !conversationId) return;
@@ -228,7 +228,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
 
     setMessages(prev => prev.filter((_, idx) => idx < messageIndex));
 
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    const fakeEvent = { preventDefault: () => {} } as FormEvent;
     await sendMessage(fakeEvent, previousUserMessage.content);
   };
 
@@ -257,7 +257,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
     setEditingMessageId(null);
     setEditContent('');
 
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    const fakeEvent = { preventDefault: () => {} } as FormEvent;
     await sendMessage(fakeEvent, editContent.trim());
   };
 

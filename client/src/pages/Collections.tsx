@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { Plus, Folder, Trash2, Edit2, X } from 'lucide-react';
@@ -67,7 +67,7 @@ export default function Collections() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (editingCollection) {
       updateMutation.mutate({ id: editingCollection.id, data: formData });

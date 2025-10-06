@@ -30,8 +30,7 @@ const ctx = await context({
     '.tsx': 'tsx',
     '.ts': 'ts',
   },
-  jsxFactory: 'React.createElement',
-  jsxFragment: 'React.Fragment',
+  jsx: 'automatic',
   sourcemap: true,
 });
 
