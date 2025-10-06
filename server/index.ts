@@ -57,8 +57,8 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // Serve static files from public directory
-  const publicPath = path.join(process.cwd(), "public");
+  // Serve static files from dist/public directory
+  const publicPath = path.join(process.cwd(), "dist/public");
   app.use(express.static(publicPath));
   
   // Serve index.html for all non-API routes
