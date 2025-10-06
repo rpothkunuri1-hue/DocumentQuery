@@ -9,7 +9,7 @@ packages = ["freetype", "glibcLocales", "lcms2", "libimagequant", "libjpeg", "li
 [deployment]
 deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
-run = ["npm", "run", "start"]
+run = ["python", "main.py"]
 
 [[ports]]
 localPort = 5000
@@ -60,23 +60,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Backend API"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "Start application"
-
-[[workflows.workflow]]
-name = "Backend API"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3.12 main.py"
-waitForPort = 5000
 
 [[workflows.workflow]]
 name = "Start application"
