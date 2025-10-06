@@ -20,6 +20,7 @@ interface Conversation {
 
 interface Props {
   document: Document;
+  selectedModel: string;
 }
 
 interface ProgressMetrics {
@@ -29,25 +30,13 @@ interface ProgressMetrics {
   promptEvalCount?: number;
 }
 
-export default function ChatInterface({ document }: Props) {
+export default function ChatInterface({ document, selectedModel }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('ollama-model') || 'llama2';
-    }
-    return 'llama2';
-  });
   const [progressMetrics, setProgressMetrics] = useState<ProgressMetrics | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ollama-model', selectedModel);
-    }
-  }, [selectedModel]);
 
   useEffect(() => {
     loadConversation();
@@ -71,7 +60,7 @@ export default function ChatInterface({ document }: Props) {
     }
   };
 
-  const sendMessage = async (e: React.FormEvent) => {
+  const sendMessage = async (e: React.FormEvent | React.KeyboardEvent) => {
     e.preventDefault();
     if (!input.trim() || isStreaming || !conversationId) return;
 
@@ -172,23 +161,8 @@ export default function ChatInterface({ document }: Props) {
       <div className="chat-header">
         <div className="chat-header-content">
           <h2>{document.name}</h2>
-          <p>Ask questions about this document</p>
+          <p>Ask questions about this document • Using {selectedModel}</p>
         </div>
-        <select 
-          value={selectedModel} 
-          onChange={(e) => setSelectedModel(e.target.value)}
-          className="model-selector"
-          disabled={isStreaming}
-        >
-          <option value="llama2">Llama 2</option>
-          <option value="llama3">Llama 3</option>
-          <option value="llama3.1">Llama 3.1</option>
-          <option value="mistral">Mistral</option>
-          <option value="mixtral">Mixtral</option>
-          <option value="codellama">Code Llama</option>
-          <option value="gemma">Gemma</option>
-          <option value="phi">Phi</option>
-        </select>
       </div>
 
       <div className="messages">

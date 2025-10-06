@@ -16,6 +16,7 @@ export default function App() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => 
     typeof window !== 'undefined' ? window.innerWidth > 768 : false
   );
@@ -26,6 +27,13 @@ export default function App() {
     }
     return 'light';
   });
+  const [selectedModel, setSelectedModel] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('ollama-model') || 'llama2';
+    }
+    return 'llama2';
+  });
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadDocuments();
@@ -38,6 +46,27 @@ export default function App() {
     }
   }, [theme]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ollama-model', selectedModel);
+    }
+  }, [selectedModel]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showUpload && !isUploading) {
+          setShowUpload(false);
+        }
+      }
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [showUpload, isUploading]);
+
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
@@ -47,13 +76,18 @@ export default function App() {
       const response = await fetch('/api/documents');
       const data = await response.json();
       setDocuments(data);
+      setError(null);
     } catch (error) {
       console.error('Failed to load documents:', error);
+      setError('Failed to load documents. Please refresh the page.');
     }
   };
 
   const handleDocumentSelect = (documentId: string) => {
     setActiveDocumentId(documentId);
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setSidebarOpen(false);
+    }
   };
 
   const handleUploadComplete = (document: Document) => {
@@ -73,9 +107,13 @@ export default function App() {
           setActiveDocumentId(null);
         }
         loadDocuments();
+        setError(null);
+      } else {
+        setError('Failed to delete document.');
       }
     } catch (error) {
       console.error('Failed to delete document:', error);
+      setError('Failed to delete document. Please try again.');
     }
   };
 
@@ -83,10 +121,22 @@ export default function App() {
 
   return (
     <div className="app">
+      {sidebarOpen && typeof window !== 'undefined' && window.innerWidth <= 768 && (
+        <div 
+          className="sidebar-overlay" 
+          onClick={() => setSidebarOpen(false)}
+          data-testid="sidebar-overlay"
+        />
+      )}
+      
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <h2>Documents</h2>
-          <button className="btn btn-primary" onClick={() => setShowUpload(true)}>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => setShowUpload(true)}
+            data-testid="button-upload"
+          >
             + Upload
           </button>
         </div>
@@ -100,17 +150,58 @@ export default function App() {
 
       <main className="main-content">
         <header className="header">
-          <button className="btn-icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
+          <button 
+            className="btn-icon" 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            data-testid="button-menu"
+            title="Toggle sidebar"
+          >
             ☰
           </button>
           <h1>DocuChat</h1>
-          <button className="btn-icon" onClick={toggleTheme} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
+          <div className="header-actions">
+            <select 
+              value={selectedModel} 
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="model-selector-header"
+              title="Select Ollama model"
+              data-testid="select-model"
+            >
+              <option value="llama2">Llama 2</option>
+              <option value="llama3">Llama 3</option>
+              <option value="llama3.1">Llama 3.1</option>
+              <option value="mistral">Mistral</option>
+              <option value="mixtral">Mixtral</option>
+              <option value="codellama">Code Llama</option>
+              <option value="gemma">Gemma</option>
+              <option value="phi">Phi</option>
+            </select>
+            <button 
+              className="btn-icon" 
+              onClick={toggleTheme} 
+              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              data-testid="button-theme"
+            >
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
+          </div>
         </header>
 
+        {error && (
+          <div className="error-banner" data-testid="error-banner">
+            <span>{error}</span>
+            <button 
+              className="error-close" 
+              onClick={() => setError(null)}
+              data-testid="button-error-close"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {activeDocument ? (
-          <ChatInterface document={activeDocument} />
+          <ChatInterface document={activeDocument} selectedModel={selectedModel} />
         ) : (
           <div className="welcome-screen">
             <div className="welcome-content">
@@ -131,6 +222,7 @@ export default function App() {
         <UploadModal
           onUploadComplete={handleUploadComplete}
           onClose={() => setShowUpload(false)}
+          onUploadingChange={setIsUploading}
         />
       )}
     </div>

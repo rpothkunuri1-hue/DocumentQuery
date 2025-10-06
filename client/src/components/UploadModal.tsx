@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface Document {
   id: string;
@@ -12,13 +12,18 @@ interface Document {
 interface Props {
   onUploadComplete: (document: Document) => void;
   onClose: () => void;
+  onUploadingChange: (uploading: boolean) => void;
 }
 
-export default function UploadModal({ onUploadComplete, onClose }: Props) {
+export default function UploadModal({ onUploadComplete, onClose, onUploadingChange }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    onUploadingChange(uploading);
+  }, [uploading, onUploadingChange]);
 
   const handleFileSelect = (selectedFile: File) => {
     const validTypes = [
