@@ -1363,3 +1363,133 @@ body {
   resize: vertical;
 }
 
+/* Button with icon and text */
+.btn-icon-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  position: relative;
+}
+
+.btn-icon-text .icon {
+  flex-shrink: 0;
+}
+
+.btn-icon-text:active {
+  transform: translateY(1px);
+}
+
+/* Ghost button variant */
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-primary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.btn-ghost:active:not(:disabled) {
+  background: var(--bg-secondary);
+}
+
+/* Secondary button variant */
+.btn-secondary {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-secondary.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.btn-secondary.active:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* Badge for button */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--accent);
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.25rem;
+}
+
+.btn-secondary.active .badge {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--accent-hover);
+}
+
+/* Sidebar header actions */
+.sidebar-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sidebar-header-actions .btn-icon-text {
+  flex: 0 1 auto;
+}
+
+/* Hamburger button specific styling */
+.hamburger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 769px) {
+  .hamburger-btn {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .hamburger-btn {
+    display: flex;
+  }
+  
+  .sidebar-header-actions {
+    gap: 0.375rem;
+  }
+  
+  .sidebar-header-actions .btn-icon-text {
+    font-size: 0.8125rem;
+    padding: 0.375rem 0.625rem;
+  }
+  
+  .sidebar-header-actions .btn-icon-text .icon {
+    width: 14px;
+    height: 14px;
+  }
+}
+

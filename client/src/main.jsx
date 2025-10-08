@@ -4,7 +4,7 @@ import App from './App';
 import { queryClient } from './lib/queryClient';
 import './styles.css';
 
-const root = createRoot(document.getElementById('root')!);
+const root = createRoot(document.getElementById('root'));
 root.render(
   <QueryClientProvider client={queryClient}>
     <App />

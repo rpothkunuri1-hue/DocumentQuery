@@ -1,22 +1,7 @@
-import { useState, useEffect, type DragEvent } from 'react';
+import { useState, useEffect } from 'react';
 
-interface Document {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  content: string;
-  uploadedAt: string;
-}
-
-interface Props {
-  onUploadComplete: (document: Document) => void;
-  onClose: () => void;
-  onUploadingChange: (uploading: boolean) => void;
-}
-
-export default function UploadModal({ onUploadComplete, onClose, onUploadingChange }: Props) {
-  const [file, setFile] = useState<File | null>(null);
+export default function UploadModal({ onUploadComplete, onClose, onUploadingChange }) {
+  const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -25,7 +10,7 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
     onUploadingChange(uploading);
   }, [uploading, onUploadingChange]);
 
-  const handleFileSelect = (selectedFile: File) => {
+  const handleFileSelect = (selectedFile) => {
     const extension = selectedFile.name.split('.').pop()?.toLowerCase() || '';
     
     const validTypes = [
@@ -91,7 +76,7 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
     }
   };
 
-  const handleDrop = (e: DragEvent) => {
+  const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
     const droppedFile = e.dataTransfer.files[0];

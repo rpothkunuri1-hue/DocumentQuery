@@ -1,54 +1,18 @@
-import { useState, useEffect, useRef, type FormEvent, type KeyboardEvent } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Send, StopCircle, Copy, RotateCcw, Edit2, ThumbsUp, ThumbsDown, Trash2, Check } from 'lucide-react';
 
-interface Document {
-  id: string;
-  name: string;
-  content: string;
-}
-
-interface Message {
-  id: string;
-  role: string;
-  content: string;
-  createdAt: string;
-}
-
-interface Conversation {
-  id: string;
-  documentId?: string;
-  documentIds?: string[];
-}
-
-interface Props {
-  documents: Document[];
-  selectedModel: string;
-  onRemoveDocument?: (id: string) => void;
-}
-
-interface ProgressMetrics {
-  tokensPerSecond?: number;
-  totalDuration?: number;
-  evalCount?: number;
-  promptEvalCount?: number;
-}
-
-interface MessageRating {
-  [messageId: string]: 'up' | 'down' | null;
-}
-
-export default function ChatInterface({ documents, selectedModel, onRemoveDocument }: Props) {
-  const [messages, setMessages] = useState<Message[]>([]);
+export default function ChatInterface({ documents, selectedModel, onRemoveDocument }) {
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [progressMetrics, setProgressMetrics] = useState<ProgressMetrics | null>(null);
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState(null);
+  const [progressMetrics, setProgressMetrics] = useState(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
   const [editContent, setEditContent] = useState('');
-  const [messageRatings, setMessageRatings] = useState<MessageRating>({});
-  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const [messageRatings, setMessageRatings] = useState({});
+  const [copiedMessageId, setCopiedMessageId] = useState(null);
+  const messagesEndRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   const isMultiDoc = documents.length > 1;
   const documentIds = documents.map(doc => doc.id);
@@ -71,7 +35,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
         });
         
         if (convResponse.ok) {
-          const conversation: Conversation = await convResponse.json();
+          const conversation = await convResponse.json();
           setConversationId(conversation.id);
 
           const messagesResponse = await fetch(`/api/messages/${conversation.id}`);
@@ -80,7 +44,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
         }
       } else if (documents.length === 1) {
         const convResponse = await fetch(`/api/conversations/${documents[0].id}`);
-        const conversation: Conversation = await convResponse.json();
+        const conversation = await convResponse.json();
         setConversationId(conversation.id);
 
         const messagesResponse = await fetch(`/api/messages/${conversation.id}`);
@@ -101,7 +65,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
     }
   };
 
-  const sendMessage = async (e: FormEvent | KeyboardEvent, content?: string) => {
+  const sendMessage = async (e, content) => {
     e.preventDefault();
     const question = content || input.trim();
     if (!question || isStreaming || !conversationId) return;
@@ -111,7 +75,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
     }
     setIsStreaming(true);
 
-    const tempUserMessage: Message = {
+    const tempUserMessage = {
       id: `temp-${Date.now()}`,
       role: 'user',
       content: question,
@@ -139,7 +103,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let assistantMessage = '';
-      let messageId: string | null = null;
+      let messageId = null;
 
       if (!reader) throw new Error('No reader');
 
@@ -160,7 +124,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
                   messageId = data.messageId;
                   setProgressMetrics(null);
                   setMessages(prev => [...prev, {
-                    id: messageId!,
+                    id: messageId,
                     role: 'assistant',
                     content: '',
                     createdAt: new Date().toISOString(),
@@ -196,7 +160,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
         setProgressMetrics(null);
         abortControllerRef.current = null;
       }
-    } catch (error: any) {
+    } catch (error) {
       if (error.name === 'AbortError') {
         console.log('Generation stopped by user');
       } else {
@@ -208,7 +172,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
     }
   };
 
-  const handleCopyMessage = async (content: string, messageId: string) => {
+  const handleCopyMessage = async (content, messageId) => {
     try {
       await navigator.clipboard.writeText(content);
       setCopiedMessageId(messageId);
@@ -219,7 +183,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
     }
   };
 
-  const handleRegenerateResponse = async (messageId: string) => {
+  const handleRegenerateResponse = async (messageId) => {
     const messageIndex = messages.findIndex(m => m.id === messageId);
     if (messageIndex === -1 || messageIndex === 0) return;
 
@@ -228,11 +192,11 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
 
     setMessages(prev => prev.filter((_, idx) => idx < messageIndex));
 
-    const fakeEvent = { preventDefault: () => {} } as FormEvent;
+    const fakeEvent = { preventDefault: () => {} };
     await sendMessage(fakeEvent, previousUserMessage.content);
   };
 
-  const handleStartEdit = (message: Message) => {
+  const handleStartEdit = (message) => {
     setEditingMessageId(message.id);
     setEditContent(message.content);
   };
@@ -242,7 +206,7 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
     setEditContent('');
   };
 
-  const handleSaveEdit = async (messageId: string) => {
+  const handleSaveEdit = async (messageId) => {
     if (!editContent.trim()) return;
 
     const messageIndex = messages.findIndex(m => m.id === messageId);
@@ -257,25 +221,25 @@ export default function ChatInterface({ documents, selectedModel, onRemoveDocume
     setEditingMessageId(null);
     setEditContent('');
 
-    const fakeEvent = { preventDefault: () => {} } as FormEvent;
+    const fakeEvent = { preventDefault: () => {} };
     await sendMessage(fakeEvent, editContent.trim());
   };
 
-  const handleRateMessage = (messageId: string, rating: 'up' | 'down') => {
+  const handleRateMessage = (messageId, rating) => {
     setMessageRatings(prev => ({
       ...prev,
       [messageId]: prev[messageId] === rating ? null : rating,
     }));
   };
 
-  const handleDeleteMessage = async (messageId: string) => {
+  const handleDeleteMessage = async (messageId) => {
     const messageIndex = messages.findIndex(m => m.id === messageId);
     if (messageIndex === -1) return;
 
     setMessages(prev => prev.filter((_, idx) => idx < messageIndex));
   };
 
-  const handleExport = async (format: 'pdf' | 'markdown' | 'json') => {
+  const handleExport = async (format) => {
     if (!conversationId) return;
 
     try {

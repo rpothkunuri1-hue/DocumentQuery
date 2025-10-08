@@ -3,33 +3,17 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { GitCompare, Loader } from 'lucide-react';
 
-interface Document {
-  id: string;
-  name: string;
-  content: string;
-}
-
-interface DocumentComparison {
-  id: string;
-  documentId1: string;
-  documentId2: string;
-  differences: string[] | null;
-  similarities: string[] | null;
-  comparisonSummary: string | null;
-  createdAt: string;
-}
-
 export default function Comparisons() {
-  const [selectedDoc1, setSelectedDoc1] = useState<string>('');
-  const [selectedDoc2, setSelectedDoc2] = useState<string>('');
-  const [comparison, setComparison] = useState<DocumentComparison | null>(null);
+  const [selectedDoc1, setSelectedDoc1] = useState('');
+  const [selectedDoc2, setSelectedDoc2] = useState('');
+  const [comparison, setComparison] = useState(null);
 
-  const { data: documents = [] } = useQuery<Document[]>({
+  const { data: documents = [] } = useQuery({
     queryKey: ['/api/documents'],
   });
 
   const compareMutation = useMutation({
-    mutationFn: async (data: { documentId1: string; documentId2: string }) => {
+    mutationFn: async (data) => {
       return await apiRequest('/api/documents/compare', {
         method: 'POST',
         body: JSON.stringify(data),

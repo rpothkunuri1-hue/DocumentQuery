@@ -8,41 +8,32 @@ import Collections from './pages/Collections';
 import Comparisons from './pages/Comparisons';
 import Jobs from './pages/Jobs';
 
-interface Document {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  content: string;
-  uploadedAt: string;
-}
-
 export default function App() {
   const [location] = useLocation();
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
-  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [documents, setDocuments] = useState([]);
+  const [activeDocumentId, setActiveDocumentId] = useState(null);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
   const [multiDocMode, setMultiDocMode] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => 
     typeof window !== 'undefined' ? window.innerWidth > 768 : false
   );
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+  const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme');
-      return (saved as 'light' | 'dark') || 'light';
+      return saved || 'light';
     }
     return 'light';
   });
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('ollama-model') || 'llama2';
     }
     return 'llama2';
   });
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadDocuments();
@@ -63,7 +54,7 @@ export default function App() {
   }, [selectedModel]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         if (showUpload && !isUploading) {
           setShowUpload(false);
@@ -97,14 +88,14 @@ export default function App() {
     try {
       const response = await fetch('/api/models');
       const data = await response.json();
-      const modelNames = data.map((model: any) => model.name);
+      const modelNames = data.map((model) => model.name);
       setAvailableModels(modelNames);
     } catch (error) {
       console.error('Failed to load models:', error);
     }
   };
 
-  const handleDocumentSelect = (documentId: string) => {
+  const handleDocumentSelect = (documentId) => {
     if (multiDocMode) {
       setSelectedDocumentIds(prev => 
         prev.includes(documentId)
@@ -136,17 +127,17 @@ export default function App() {
     });
   };
 
-  const removeFromMultiDoc = (documentId: string) => {
+  const removeFromMultiDoc = (documentId) => {
     setSelectedDocumentIds(prev => prev.filter(id => id !== documentId));
   };
 
-  const handleUploadComplete = (document: Document) => {
+  const handleUploadComplete = (document) => {
     setActiveDocumentId(document.id);
     setShowUpload(false);
     loadDocuments();
   };
 
-  const handleDocumentDelete = async (documentId: string) => {
+  const handleDocumentDelete = async (documentId) => {
     try {
       const response = await fetch(`/api/documents/${documentId}`, {
         method: 'DELETE',

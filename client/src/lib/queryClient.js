@@ -7,7 +7,7 @@ export const queryClient = new QueryClient({
       retry: 1,
       staleTime: 5000,
       queryFn: async ({ queryKey }) => {
-        const response = await fetch(queryKey[0] as string);
+        const response = await fetch(queryKey[0]);
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
@@ -17,7 +17,7 @@ export const queryClient = new QueryClient({
   },
 });
 
-export async function apiRequest(url: string, options: RequestInit = {}) {
+export async function apiRequest(url, options = {}) {
   const isFormData = options.body instanceof FormData;
   
   const response = await fetch(url, {

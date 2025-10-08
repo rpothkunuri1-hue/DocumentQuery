@@ -1,34 +1,25 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { Plus, Folder, Trash2, Edit2, X } from 'lucide-react';
 
-interface Collection {
-  id: string;
-  name: string;
-  description: string | null;
-  createdAt: string;
-  updatedAt: string;
-  documents?: any[];
-}
-
 export default function Collections() {
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
-  const [editingCollection, setEditingCollection] = useState<Collection | null>(null);
+  const [selectedCollection, setSelectedCollection] = useState(null);
+  const [editingCollection, setEditingCollection] = useState(null);
   const [formData, setFormData] = useState({ name: '', description: '' });
 
-  const { data: collections = [], isLoading } = useQuery<Collection[]>({
+  const { data: collections = [], isLoading } = useQuery({
     queryKey: ['/api/collections'],
   });
 
-  const { data: collectionDetails } = useQuery<Collection>({
+  const { data: collectionDetails } = useQuery({
     queryKey: ['/api/collections', selectedCollection?.id],
     enabled: !!selectedCollection?.id,
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string }) => {
+    mutationFn: async (data) => {
       return await apiRequest('/api/collections', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -42,7 +33,7 @@ export default function Collections() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<Collection> }) => {
+    mutationFn: async ({ id, data }) => {
       return await apiRequest(`/api/collections/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -56,7 +47,7 @@ export default function Collections() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (id) => {
       return await apiRequest(`/api/collections/${id}`, {
         method: 'DELETE',
       });
@@ -67,7 +58,7 @@ export default function Collections() {
     },
   });
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (editingCollection) {
       updateMutation.mutate({ id: editingCollection.id, data: formData });
@@ -76,7 +67,7 @@ export default function Collections() {
     }
   };
 
-  const openEditModal = (collection: Collection) => {
+  const openEditModal = (collection) => {
     setEditingCollection(collection);
     setFormData({ name: collection.name, description: collection.description || '' });
     setShowCreateModal(true);
@@ -158,7 +149,7 @@ export default function Collections() {
           <h2>Documents in {selectedCollection.name}</h2>
           {collectionDetails.documents && collectionDetails.documents.length > 0 ? (
             <div className="documents-list">
-              {collectionDetails.documents.map((doc: any) => (
+              {collectionDetails.documents.map((doc) => (
                 <div key={doc.id} className="document-item" data-testid={`document-item-${doc.id}`}>
                   <span>{doc.name}</span>
                   <span className="document-size">{(doc.size / 1024).toFixed(2)} KB</span>

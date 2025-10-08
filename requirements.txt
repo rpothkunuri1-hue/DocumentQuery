@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-multipart
+pypdf2
+python-docx
+openpyxl
+pandas
+beautifulsoup4
+pytesseract
+pillow
+httpx
+lxml

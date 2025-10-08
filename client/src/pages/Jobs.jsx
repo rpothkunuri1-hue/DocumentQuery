@@ -3,25 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Clock, CheckCircle, XCircle, Loader, Upload } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 
-interface Job {
-  id: string;
-  type: string;
-  status: string;
-  data: any;
-  result: any;
-  error: string | null;
-  progress: number;
-  createdAt: string;
-  updatedAt: string;
-  completedAt: string | null;
-}
-
 export default function Jobs() {
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedFiles, setSelectedFiles] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const { data: jobs = [], isLoading, refetch } = useQuery<Job[]>({
+  const { data: jobs = [], isLoading, refetch } = useQuery({
     queryKey: ['/api/jobs', statusFilter === 'all' ? undefined : statusFilter],
     refetchInterval: 3000,
   });
@@ -50,7 +37,7 @@ export default function Jobs() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status) => {
     switch (status) {
       case 'completed':
         return <CheckCircle size={20} className="status-icon success" />;

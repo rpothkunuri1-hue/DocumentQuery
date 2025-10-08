@@ -1,20 +1,3 @@
-import type { MouseEvent } from 'react';
-
-interface Document {
-  id: string;
-  name: string;
-  uploadedAt: string;
-}
-
-interface Props {
-  documents: Document[];
-  activeDocumentId: string | null;
-  selectedDocumentIds?: string[];
-  multiDocMode?: boolean;
-  onDocumentSelect: (id: string) => void;
-  onDocumentDelete: (id: string) => void;
-}
-
 export default function DocumentList({ 
   documents, 
   activeDocumentId, 
@@ -22,7 +5,7 @@ export default function DocumentList({
   multiDocMode = false,
   onDocumentSelect, 
   onDocumentDelete 
-}: Props) {
+}) {
   if (documents.length === 0) {
     return (
       <div className="documents-list">
@@ -31,7 +14,7 @@ export default function DocumentList({
     );
   }
 
-  const handleDelete = (e: MouseEvent, id: string) => {
+  const handleDelete = (e, id) => {
     e.stopPropagation();
     if (confirm('Are you sure you want to delete this document? This will also delete all associated conversations.')) {
       onDocumentDelete(id);
