@@ -9,7 +9,7 @@ packages = ["freetype", "glibcLocales", "lcms2", "libimagequant", "libjpeg", "li
 [deployment]
 deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
-run = ["python", "main.py"]
+run = ["npm", "run", "start"]
 
 [[ports]]
 localPort = 5000
@@ -71,7 +71,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python main.py"
+args = "npm run dev"
 waitForPort = 5000
 
 [agent]
