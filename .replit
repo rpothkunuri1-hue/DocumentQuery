@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "python-3.12"]
+modules = ["nodejs-20", "web", "python-3.11"]
 run = "npm run dev"
 hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
@@ -14,6 +14,10 @@ run = ["npm", "run", "start"]
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
 
 [[ports]]
 localPort = 36979
@@ -47,6 +51,10 @@ externalPort = 3001
 localPort = 45539
 externalPort = 3002
 
+[[ports]]
+localPort = 45849
+externalPort = 6000
+
 [env]
 PORT = "5000"
 
@@ -71,7 +79,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python main.py & npm run dev"
+args = "npm run dev"
 waitForPort = 5000
 
 [agent]
