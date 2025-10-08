@@ -7,7 +7,8 @@ from app.document_parser import (
     extract_text_from_pdf, extract_text_from_docx, extract_text_from_txt,
     extract_text_from_csv, extract_text_from_excel, extract_text_from_markdown,
     extract_text_from_html, extract_text_from_rtf, extract_text_from_code,
-    CODE_EXTENSIONS
+    extract_text_from_image,
+    CODE_EXTENSIONS, IMAGE_EXTENSIONS
 )
 from typing import List, Optional, AsyncIterator
 from pydantic import BaseModel
@@ -123,6 +124,8 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
             content = await extract_text_from_rtf(content_bytes)
         elif extension in CODE_EXTENSIONS:
             content = await extract_text_from_code(content_bytes, extension)
+        elif extension in IMAGE_EXTENSIONS or mimetype.startswith("image/"):
+            content = await extract_text_from_image(content_bytes)
         else:
             raise HTTPException(status_code=400, detail="Unsupported file type")
         
@@ -704,3 +707,202 @@ async def multi_chat(request: MultiChatRequest, db: Session = Depends(get_db)):
     except Exception as e:
         print(f"Multi-chat error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process multi-document chat: {str(e)}")
+
+# ==================== EXPORT ENDPOINTS ====================
+
+from fastapi.responses import Response
+from datetime import datetime
+
+@router.get("/api/documents/{document_id}/export/json")
+async def export_document_json(document_id: str, db: Session = Depends(get_db)):
+    """Export document as JSON"""
+    try:
+        document = db.query(models.Document).filter(models.Document.id == document_id).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Get conversations for this document
+        conversations = db.query(models.Conversation).filter(
+            models.Conversation.document_id == document_id
+        ).all()
+        
+        export_data = {
+            "document": {
+                "id": document.id,
+                "name": document.name,
+                "type": document.type,
+                "size": document.size,
+                "uploadedAt": document.uploaded_at.isoformat() if document.uploaded_at else None,
+                "content": document.content,
+                "summary": document.summary,
+                "briefSummary": document.brief_summary,
+                "keyPoints": document.key_points
+            },
+            "conversations": []
+        }
+        
+        # Add conversations and messages
+        for conv in conversations:
+            messages = db.query(models.Message).filter(
+                models.Message.conversation_id == conv.id
+            ).order_by(models.Message.created_at).all()
+            
+            export_data["conversations"].append({
+                "id": conv.id,
+                "createdAt": conv.created_at.isoformat() if conv.created_at else None,
+                "messages": [
+                    {
+                        "id": msg.id,
+                        "role": msg.role,
+                        "content": msg.content,
+                        "createdAt": msg.created_at.isoformat() if msg.created_at else None
+                    }
+                    for msg in messages
+                ]
+            })
+        
+        return Response(
+            content=json.dumps(export_data, indent=2),
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f'attachment; filename="{document.name}_export.json"'
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to export document: {str(e)}")
+
+@router.get("/api/documents/{document_id}/export/markdown")
+async def export_document_markdown(document_id: str, db: Session = Depends(get_db)):
+    """Export document as Markdown"""
+    try:
+        document = db.query(models.Document).filter(models.Document.id == document_id).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Build markdown content
+        md_content = f"# {document.name}\n\n"
+        md_content += f"**Uploaded:** {document.uploaded_at.strftime('%Y-%m-%d %H:%M:%S') if document.uploaded_at else 'Unknown'}\n\n"
+        
+        if document.brief_summary:
+            md_content += f"## Summary\n\n{document.brief_summary}\n\n"
+        
+        if document.key_points:
+            md_content += "## Key Points\n\n"
+            for point in document.key_points:
+                md_content += f"- {point}\n"
+            md_content += "\n"
+        
+        md_content += "## Document Content\n\n"
+        md_content += f"```\n{document.content}\n```\n\n"
+        
+        # Add conversations
+        conversations = db.query(models.Conversation).filter(
+            models.Conversation.document_id == document_id
+        ).all()
+        
+        if conversations:
+            md_content += "## Conversations\n\n"
+            for conv_idx, conv in enumerate(conversations, 1):
+                messages = db.query(models.Message).filter(
+                    models.Message.conversation_id == conv.id
+                ).order_by(models.Message.created_at).all()
+                
+                md_content += f"### Conversation {conv_idx}\n\n"
+                for msg in messages:
+                    role = "**User:**" if msg.role == "user" else "**Assistant:**"
+                    md_content += f"{role} {msg.content}\n\n"
+        
+        return Response(
+            content=md_content,
+            media_type="text/markdown",
+            headers={
+                "Content-Disposition": f'attachment; filename="{document.name}_export.md"'
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to export document: {str(e)}")
+
+@router.get("/api/documents/{document_id}/export/pdf")
+async def export_document_pdf(document_id: str, db: Session = Depends(get_db)):
+    """Export document as PDF"""
+    try:
+        document = db.query(models.Document).filter(models.Document.id == document_id).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Create PDF using reportlab
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+        from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY
+        
+        # Create PDF in memory
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+        
+        # Container for the 'Flowable' objects
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Title
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor='#2563eb',
+            spaceAfter=30,
+        )
+        elements.append(Paragraph(document.name, title_style))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Metadata
+        meta_text = f"<b>Uploaded:</b> {document.uploaded_at.strftime('%Y-%m-%d %H:%M:%S') if document.uploaded_at else 'Unknown'}<br/>"
+        meta_text += f"<b>Size:</b> {document.size} bytes<br/>"
+        meta_text += f"<b>Type:</b> {document.type}"
+        elements.append(Paragraph(meta_text, styles['Normal']))
+        elements.append(Spacer(1, 0.3*inch))
+        
+        # Summary
+        if document.brief_summary:
+            elements.append(Paragraph("<b>Summary</b>", styles['Heading2']))
+            elements.append(Spacer(1, 0.1*inch))
+            elements.append(Paragraph(document.brief_summary, styles['Normal']))
+            elements.append(Spacer(1, 0.2*inch))
+        
+        # Key Points
+        if document.key_points:
+            elements.append(Paragraph("<b>Key Points</b>", styles['Heading2']))
+            elements.append(Spacer(1, 0.1*inch))
+            for point in document.key_points:
+                elements.append(Paragraph(f"• {point}", styles['Normal']))
+            elements.append(Spacer(1, 0.2*inch))
+        
+        # Content preview (first 2000 chars)
+        elements.append(Paragraph("<b>Document Content</b>", styles['Heading2']))
+        elements.append(Spacer(1, 0.1*inch))
+        content_preview = document.content[:2000] + ("..." if len(document.content) > 2000 else "")
+        # Escape HTML and preserve formatting
+        content_preview = content_preview.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        content_preview = content_preview.replace('\n', '<br/>')
+        elements.append(Paragraph(content_preview, styles['Normal']))
+        
+        # Build PDF
+        doc.build(elements)
+        buffer.seek(0)
+        
+        return Response(
+            content=buffer.getvalue(),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{document.name}_export.pdf"'
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to export document: {str(e)}")

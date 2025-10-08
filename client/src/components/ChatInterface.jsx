@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, StopCircle, Copy, RotateCcw, Edit2, ThumbsUp, ThumbsDown, Trash2, Check } from 'lucide-react';
+import { Send, StopCircle, Copy, RotateCcw, Edit2, ThumbsUp, ThumbsDown, Trash2, Check, Download, FileText, FileJson } from 'lucide-react';
 
-export default function ChatInterface({ document, selectedModel }) {
+export default function ChatInterface({ document: currentDocument, selectedModel }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -16,7 +16,7 @@ export default function ChatInterface({ document, selectedModel }) {
 
   useEffect(() => {
     loadConversation();
-  }, [document.id]);
+  }, [currentDocument.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -24,7 +24,7 @@ export default function ChatInterface({ document, selectedModel }) {
 
   const loadConversation = async () => {
     try {
-      const convResponse = await fetch(`/api/conversations/${document.id}`);
+      const convResponse = await fetch(`/api/conversations/${currentDocument.id}`);
       const conversation = await convResponse.json();
       setConversationId(conversation.id);
 
@@ -70,7 +70,7 @@ export default function ChatInterface({ document, selectedModel }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          documentId: document.id,
+          documentId: currentDocument.id,
           conversationId,
           question,
           model: selectedModel
@@ -228,12 +228,61 @@ export default function ChatInterface({ document, selectedModel }) {
     </div>
   );
 
+  const handleExport = async (format) => {
+    try {
+      const response = await fetch(`/api/documents/${currentDocument.id}/export/${format}`);
+      if (!response.ok) throw new Error(`Failed to export as ${format}`);
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentDocument.name}_export.${format === 'markdown' ? 'md' : format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error(`Export failed:`, error);
+      alert(`Failed to export document as ${format}`);
+    }
+  };
+
   return (
     <div className="chat-view">
       <div className="chat-header">
         <div className="chat-header-content">
-          <h2 data-testid="text-header">{document.name}</h2>
+          <h2 data-testid="text-header">{currentDocument.name}</h2>
           <p>Ask questions about this document • Using {selectedModel}</p>
+        </div>
+        <div className="export-actions">
+          <button
+            onClick={() => handleExport('pdf')}
+            className="btn-export"
+            title="Export as PDF"
+            data-testid="button-export-pdf"
+          >
+            <Download className="w-4 h-4" />
+            <span>PDF</span>
+          </button>
+          <button
+            onClick={() => handleExport('markdown')}
+            className="btn-export"
+            title="Export as Markdown"
+            data-testid="button-export-md"
+          >
+            <FileText className="w-4 h-4" />
+            <span>MD</span>
+          </button>
+          <button
+            onClick={() => handleExport('json')}
+            className="btn-export"
+            title="Export as JSON"
+            data-testid="button-export-json"
+          >
+            <FileJson className="w-4 h-4" />
+            <span>JSON</span>
+          </button>
         </div>
       </div>
 
@@ -241,7 +290,7 @@ export default function ChatInterface({ document, selectedModel }) {
         {messages.length === 0 ? (
           <div className="empty-chat">
             <h3>Start a conversation</h3>
-            <p>Ask any question about "{document.name}"</p>
+            <p>Ask any question about "{currentDocument.name}"</p>
           </div>
         ) : (
           messages.map((message) => (

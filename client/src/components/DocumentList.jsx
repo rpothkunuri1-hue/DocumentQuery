@@ -1,9 +1,14 @@
+import { useState } from 'react';
+
 export default function DocumentList({ 
   documents, 
   activeDocumentId, 
   onDocumentSelect, 
   onDocumentDelete 
 }) {
+  const [swipeState, setSwipeState] = useState({});
+  const [touchStart, setTouchStart] = useState(null);
+
   if (documents.length === 0) {
     return (
       <div className="documents-list">
@@ -13,35 +18,81 @@ export default function DocumentList({
   }
 
   const handleDelete = (e, id) => {
-    e.stopPropagation();
+    if (e) e.stopPropagation();
     if (confirm('Are you sure you want to delete this document? This will also delete all associated conversations.')) {
       onDocumentDelete(id);
+      setSwipeState({});
     }
+  };
+
+  const handleTouchStart = (e, id) => {
+    const touch = e.touches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY, id });
+  };
+
+  const handleTouchMove = (e, id) => {
+    if (!touchStart || touchStart.id !== id) return;
+
+    const touch = e.touches[0];
+    const deltaX = touchStart.x - touch.clientX;
+    const deltaY = Math.abs(touchStart.y - touch.clientY);
+
+    if (deltaY > 30) return;
+
+    if (deltaX > 10) {
+      setSwipeState(prev => ({ ...prev, [id]: Math.min(deltaX, 100) }));
+    } else {
+      setSwipeState(prev => ({ ...prev, [id]: 0 }));
+    }
+  };
+
+  const handleTouchEnd = (e, id) => {
+    if (!touchStart || touchStart.id !== id) return;
+
+    const swipeDistance = swipeState[id] || 0;
+    
+    if (swipeDistance > 60) {
+      handleDelete(null, id);
+    } else {
+      setSwipeState(prev => ({ ...prev, [id]: 0 }));
+    }
+    
+    setTouchStart(null);
   };
 
   return (
     <div className="documents-list">
-      {documents.map(doc => (
-        <div
-          key={doc.id}
-          className={`document-item ${doc.id === activeDocumentId ? 'active' : ''}`}
-          onClick={() => onDocumentSelect(doc.id)}
-          data-testid={`document-item-${doc.id}`}
-        >
-          <div className="document-info">
-            <h3>{doc.name}</h3>
-            <p>{new Date(doc.uploadedAt).toLocaleDateString()}</p>
-          </div>
-          <button
-            className="btn-delete"
-            onClick={(e) => handleDelete(e, doc.id)}
-            title="Delete document"
-            data-testid={`button-delete-${doc.id}`}
+      {documents.map(doc => {
+        const swipeOffset = swipeState[doc.id] || 0;
+        
+        return (
+          <div
+            key={doc.id}
+            className={`document-item-wrapper ${doc.id === activeDocumentId ? 'active' : ''}`}
+            data-testid={`document-item-${doc.id}`}
           >
-            🗑️
-          </button>
-        </div>
-      ))}
+            <div
+              className="document-item"
+              style={{
+                transform: `translateX(-${swipeOffset}px)`,
+                transition: touchStart?.id === doc.id ? 'none' : 'transform 0.3s ease'
+              }}
+              onClick={() => !swipeOffset && onDocumentSelect(doc.id)}
+              onTouchStart={(e) => handleTouchStart(e, doc.id)}
+              onTouchMove={(e) => handleTouchMove(e, doc.id)}
+              onTouchEnd={(e) => handleTouchEnd(e, doc.id)}
+            >
+              <div className="document-info">
+                <h3>{doc.name}</h3>
+                <p>{new Date(doc.uploadedAt).toLocaleDateString()}</p>
+              </div>
+            </div>
+            <div className="delete-reveal" style={{ width: `${Math.min(swipeOffset, 100)}px` }}>
+              <span className="delete-text">Delete</span>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

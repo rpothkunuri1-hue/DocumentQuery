@@ -1,5 +1,0 @@
-TODO:
-
-1. add gestures to delete on list item instead of trash icon, 
-2. Export capabilities (PDF, MD, JSON),
-3. OCR support

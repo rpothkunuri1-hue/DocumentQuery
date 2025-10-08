@@ -3,7 +3,18 @@ from docx import Document
 import openpyxl
 import pandas as pd
 from bs4 import BeautifulSoup
+import pytesseract
+from PIL import Image
 import io
+
+async def extract_text_from_image(buffer: bytes) -> str:
+    """Extract text from image using OCR"""
+    try:
+        image = Image.open(io.BytesIO(buffer))
+        text = pytesseract.image_to_string(image)
+        return text.strip()
+    except Exception as e:
+        raise Exception(f"Failed to extract text from image: {str(e)}")
 
 async def extract_text_from_pdf(buffer: bytes) -> str:
     """Extract text from PDF file"""
@@ -105,3 +116,6 @@ CODE_EXTENSIONS = {
     "rb", "php", "swift", "kt", "r", "sql", "sh", "bash", "json", "xml",
     "yaml", "yml", "css", "scss", "sass", "less", "html", "htm"
 }
+
+# Supported image extensions for OCR
+IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "bmp", "tiff", "tif"}
