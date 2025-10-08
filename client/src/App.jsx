@@ -241,7 +241,7 @@ export default function App() {
                 <p>✓ Support for PDF, TXT, DOCX, CSV, MD, HTML, and more</p>
                 <p>✓ Real-time streaming responses</p>
                 <p>✓ Conversation history and memory</p>
-                <p>✓ OCR support for images</p>
+                <p>✓ Message management: edit, regenerate, rate, and delete</p>
               </div>
             </div>
           </div>
