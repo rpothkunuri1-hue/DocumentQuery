@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Trash2 } from 'lucide-react';
 
 export default function DocumentList({ 
   documents, 
@@ -8,6 +9,16 @@ export default function DocumentList({
 }) {
   const [swipeState, setSwipeState] = useState({});
   const [touchStart, setTouchStart] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   if (documents.length === 0) {
     return (
@@ -78,18 +89,33 @@ export default function DocumentList({
                 transition: touchStart?.id === doc.id ? 'none' : 'transform 0.3s ease'
               }}
               onClick={() => !swipeOffset && onDocumentSelect(doc.id)}
-              onTouchStart={(e) => handleTouchStart(e, doc.id)}
-              onTouchMove={(e) => handleTouchMove(e, doc.id)}
-              onTouchEnd={(e) => handleTouchEnd(e, doc.id)}
+              onTouchStart={isMobile ? (e) => handleTouchStart(e, doc.id) : undefined}
+              onTouchMove={isMobile ? (e) => handleTouchMove(e, doc.id) : undefined}
+              onTouchEnd={isMobile ? (e) => handleTouchEnd(e, doc.id) : undefined}
             >
               <div className="document-info">
                 <h3>{doc.name}</h3>
                 <p>{new Date(doc.uploadedAt).toLocaleDateString()}</p>
               </div>
+              {!isMobile && (
+                <button
+                  className="btn-delete-icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(e, doc.id);
+                  }}
+                  title="Delete document"
+                  data-testid={`button-delete-${doc.id}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
-            <div className="delete-reveal" style={{ width: `${Math.min(swipeOffset, 100)}px` }}>
-              <span className="delete-text">Delete</span>
-            </div>
+            {isMobile && (
+              <div className="delete-reveal" style={{ width: `${Math.min(swipeOffset, 100)}px` }}>
+                <span className="delete-text">Delete</span>
+              </div>
+            )}
           </div>
         );
       })}

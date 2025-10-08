@@ -4,10 +4,12 @@ DocuChat is an intelligent document chat application that enables users to uploa
 
 ## Features
 
-- **Multi-Format Support**: Upload and process PDF, TXT, DOCX, CSV, Excel, MD, HTML files
+- **Multi-Format Support**: Upload and process PDF, TXT, DOCX, CSV, Excel, MD, HTML, and image files (PNG, JPG, JPEG, GIF, BMP, TIFF)
+- **OCR Support**: Extract text from images using Tesseract OCR for document analysis
+- **Export Capabilities**: Export documents and conversations to PDF, Markdown, or JSON formats
 - **Real-Time Streaming**: Get instant responses with streaming AI-generated answers
 - **Conversation History**: All conversations are saved and persisted across sessions
-- **Document Management**: Easy upload, selection, and deletion of documents
+- **Touch-Friendly Interface**: Swipe-to-delete gestures for mobile users, with button fallback for desktop
 - **Dark Mode**: Toggle between light and dark themes
 - **Message Management**: Edit messages, regenerate responses, rate answers, and delete conversation history
 - **Model Selection**: Choose from multiple Ollama models
@@ -25,6 +27,8 @@ DocuChat is an intelligent document chat application that enables users to uploa
   - openpyxl for Excel files
   - pandas for CSV files
   - beautifulsoup4 for HTML parsing
+  - pytesseract + Pillow for OCR image processing
+  - reportlab for PDF export generation
 
 ### Frontend
 - **React 18**: Modern UI library for building user interfaces
@@ -75,6 +79,11 @@ Install Python dependencies:
 ```bash
 pip install -r requirements.txt
 ```
+
+**Note**: For OCR support, you'll also need to install Tesseract OCR:
+- **Ubuntu/Debian**: `sudo apt-get install tesseract-ocr`
+- **macOS**: `brew install tesseract`
+- **Windows**: Download from [GitHub](https://github.com/UB-Mannheim/tesseract/wiki)
 
 ### 3. Frontend Setup
 
@@ -190,8 +199,11 @@ docuchat/
 ### Documents
 - `GET /api/documents` - List all documents
 - `GET /api/documents/{document_id}` - Get a specific document
-- `POST /api/documents/upload` - Upload a document
+- `POST /api/documents/upload` - Upload a document (supports images with OCR)
 - `DELETE /api/documents/{document_id}` - Delete a document
+- `GET /api/documents/{document_id}/export/json` - Export document as JSON
+- `GET /api/documents/{document_id}/export/markdown` - Export document as Markdown
+- `GET /api/documents/{document_id}/export/pdf` - Export document as PDF
 
 ### Conversations
 - `GET /api/conversations/{document_id}` - Get or create conversation for a document
@@ -221,30 +233,15 @@ docuchat/
 - **Word**: `.docx`
 - **Excel**: `.xlsx`, `.csv`
 - **HTML**: `.html`, `.htm`
+- **Images (OCR)**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.tiff`
 - **Code files**: `.js`, `.py`, `.java`, `.c`, `.cpp`, and many more
 
 ## Testing
 
-### Backend Tests
-
-Run backend tests with pytest:
-
-```bash
-pytest tests/backend/
-```
-
-### Frontend Tests
-
-Run frontend tests with vitest:
-
-```bash
-npm test
-```
-
-The test suites cover:
-- Document parsing logic for various file formats
-- API endpoint functionality
-- React component behavior and user interactions
+Testing infrastructure has been removed to keep the application compact. For production use, consider adding:
+- Backend tests with pytest for document parsing and API endpoints
+- Frontend tests with vitest or React Testing Library
+- End-to-end tests with Playwright or Cypress
 
 ## Troubleshooting
 
@@ -272,7 +269,8 @@ If port 5000 or 8000 is already in use:
 
 - Maximum file size is 10MB
 - Ensure the file format is supported
-- Check that the document contains extractable text (images without OCR are not yet supported)
+- For images, ensure Tesseract OCR is installed on your system
+- Check that the document contains extractable text
 
 ## Contributing
 
