@@ -1,193 +1,295 @@
 # DocuChat
 
-DocuChat is a document-based chat application that allows you to upload documents (PDF, TXT, DOCX) and have intelligent conversations about their content using AI.
+DocuChat is an intelligent document chat application that enables users to upload documents and have natural conversations about their content using local Ollama language models.
 
 ## Features
 
-- **Document Upload**: Support for PDF, TXT, and DOCX files (max 10MB)
-- **Real-time Streaming**: AI responses stream in real-time for a better user experience
-- **Conversation History**: All conversations are saved and linked to their respective documents
-- **Simple React UI**: Clean, responsive interface built with React and vanilla CSS
-- **No Heavy Dependencies**: Uses only essential libraries - React for UI, Express for backend
+- **Multi-Format Support**: Upload and process PDF, TXT, DOCX, CSV, Excel, MD, HTML files
+- **Real-Time Streaming**: Get instant responses with streaming AI-generated answers
+- **Conversation History**: All conversations are saved and persisted across sessions
+- **Document Management**: Easy upload, selection, and deletion of documents
+- **Dark Mode**: Toggle between light and dark themes
+- **Message Management**: Edit messages, regenerate responses, rate answers, and delete conversation history
+- **Model Selection**: Choose from multiple Ollama models
 
 ## Tech Stack
 
-### Frontend
-- **React 18**: UI framework
-- **Vanilla CSS**: Simple, custom styling without UI libraries
-- **esbuild**: Fast JavaScript bundler (no Vite)
-
 ### Backend
-- **Node.js 20**: Runtime environment
-- **Express**: Web framework
-- **TypeScript**: Type-safe development
-- **Drizzle ORM**: Database operations
-- **PostgreSQL**: Database (Neon-backed on Replit)
+- **FastAPI**: Modern Python web framework for building APIs
+- **SQLAlchemy**: SQL toolkit and ORM for database operations
+- **PostgreSQL**: Relational database for data persistence
+- **Ollama**: Local language model inference
+- **Python Document Parsers**:
+  - PyPDF2 for PDF files
+  - python-docx for Word documents
+  - openpyxl for Excel files
+  - pandas for CSV files
+  - beautifulsoup4 for HTML parsing
 
-### Document Processing
-- **pdf-parse**: Extract text from PDF files
-- **mammoth**: Extract text from DOCX files
-- **multer**: Handle file uploads
-
-### AI Integration (Optional)
-- **Ollama**: Local AI model server for chat functionality
+### Frontend
+- **React 18**: Modern UI library for building user interfaces
+- **Vite**: Fast build tool and development server
+- **TanStack Query**: Powerful data synchronization and caching
+- **Wouter**: Lightweight routing solution
+- **Lucide React**: Beautiful icon library
+- **React Hook Form + Zod**: Form validation and management
 
 ## Prerequisites
 
-- Node.js 20.x or higher
-- PostgreSQL database
-- (Optional) Ollama running on http://localhost:11434 for AI chat
+Before running DocuChat, ensure you have the following installed:
 
-## Setup Guide
+- **Python 3.11+**
+- **Node.js 20+** and npm
+- **PostgreSQL 12+**
+- **Ollama** (for local LLM inference)
 
-### 1. Install Dependencies
+### Installing Ollama
+
+1. Visit [ollama.ai](https://ollama.ai/) and download Ollama for your operating system
+2. Install Ollama and ensure it's running
+3. Pull at least one model:
+   ```bash
+   ollama pull llama2
+   ```
+
+## Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/docuchat.git
+cd docuchat
+```
+
+### 2. Backend Setup
+
+Create and activate a Python virtual environment:
+
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+Install Python dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Frontend Setup
+
+Install Node.js dependencies:
 
 ```bash
 npm install
 ```
 
-### 2. Set Up Database
+### 4. Database Setup
 
-The application uses PostgreSQL. On Replit, the database is automatically provisioned. 
-
-Push the database schema:
+Create a PostgreSQL database:
 
 ```bash
-npm run db:push
+createdb docuchat
 ```
 
-### 3. Environment Variables
+Set up environment variables. Create a `.env` file in the root directory:
 
-Required environment variables:
-- `DATABASE_URL`: PostgreSQL connection string (auto-set on Replit)
-- `PORT`: Server port (default: 5000)
-- `OLLAMA_BASE_URL`: Ollama server URL (optional, default: http://localhost:11434)
-- `OLLAMA_MODEL`: AI model to use (optional, default: llama2)
-
-### 4. Build the Client
-
-Build the React frontend:
-
-```bash
-node build.mjs
+```env
+DATABASE_URL=postgresql://username:password@localhost:5432/docuchat
+OLLAMA_BASE_URL=http://localhost:11434
+PORT=5000
 ```
 
-### 5. Run in Development
+The database tables will be created automatically when you first run the application.
 
-Start the development server:
+## Running the Application
+
+### Development Mode
+
+The easiest way to run both frontend and backend together:
 
 ```bash
 npm run dev
 ```
 
-The application will be available at http://localhost:5000
+This command:
+- Starts the FastAPI backend on port 8000
+- Starts the Vite development server on port 5000
+- Proxies API requests from frontend to backend
 
-### 6. Run in Production
+Access the application at: **http://localhost:5000**
 
-Build and start the production server:
+### Running Separately
+
+**Backend only**:
+```bash
+python main.py
+```
+
+**Frontend only**:
+```bash
+npm run dev
+```
+
+## Building for Production
+
+### 1. Build the Frontend
 
 ```bash
 npm run build
-npm start
 ```
+
+This creates an optimized production build in the `dist` directory.
+
+### 2. Run in Production Mode
+
+```bash
+npm run start
+```
+
+The FastAPI server will serve the built frontend files and API on port 5000.
 
 ## Project Structure
 
 ```
-├── client/               # React frontend
+docuchat/
+├── app/                      # Backend Python application
+│   ├── __init__.py
+│   ├── database.py          # Database configuration
+│   ├── models.py            # SQLAlchemy models
+│   ├── routes.py            # API endpoints
+│   ├── document_parser.py   # Document processing logic
+│   └── init_db.py          # Database initialization
+├── client/                   # Frontend React application
 │   ├── src/
-│   │   ├── components/  # React components
-│   │   ├── App.tsx      # Main app component
-│   │   ├── main.tsx     # Entry point
-│   │   └── styles.css   # Global styles
-│   └── index.html       # HTML template
-├── server/              # Express backend
-│   ├── index.ts         # Server entry point
-│   ├── routes.ts        # API routes
-│   └── storage.ts       # Database operations
-├── shared/              # Shared types and schemas
-│   └── schema.ts        # Database schema
-├── dist/                # Build output
-│   ├── public/          # Built frontend files
-│   └── index.js         # Built backend
-├── build.mjs            # Frontend build script
-├── dev.mjs              # Development script
-└── package.json         # Dependencies
-
+│   │   ├── components/      # React components
+│   │   │   ├── ChatInterface.jsx
+│   │   │   ├── DocumentList.jsx
+│   │   │   └── UploadModal.jsx
+│   │   ├── lib/             # Utility libraries
+│   │   │   └── queryClient.js
+│   │   ├── App.jsx          # Main application component
+│   │   ├── main.jsx         # Entry point
+│   │   └── styles.css       # Global styles
+│   └── index.html           # HTML template
+├── tests/                    # Test files
+│   ├── backend/             # Backend tests
+│   │   ├── test_document_parser.py
+│   │   └── test_routes.py
+│   └── frontend/            # Frontend tests
+│       └── ChatInterface.test.jsx
+├── main.py                   # FastAPI application entry point
+├── requirements.txt          # Python dependencies
+├── package.json             # Node.js dependencies
+├── vite.config.js           # Vite configuration
+└── README.md                # This file
 ```
 
 ## API Endpoints
 
 ### Documents
 - `GET /api/documents` - List all documents
-- `GET /api/documents/:id` - Get document by ID
-- `POST /api/documents/upload` - Upload a new document
+- `GET /api/documents/{document_id}` - Get a specific document
+- `POST /api/documents/upload` - Upload a document
+- `DELETE /api/documents/{document_id}` - Delete a document
 
 ### Conversations
-- `GET /api/conversations/:documentId` - Get or create conversation for a document
+- `GET /api/conversations/{document_id}` - Get or create conversation for a document
 
 ### Messages
-- `GET /api/messages/:conversationId` - Get all messages in a conversation
-- `POST /api/chat` - Send a message and get AI response (streaming)
+- `GET /api/messages/{conversation_id}` - Get all messages in a conversation
+- `POST /api/chat` - Send a message and get streaming response
 
-## Development
+### Models
+- `GET /api/models` - List available Ollama models
 
-### Build Client Only
+### Health
+- `GET /health` - Health check endpoint
+
+## Configuration
+
+### Environment Variables
+
+- `PORT`: Server port (default: 5000 for production, 8000 for backend in dev mode)
+- `DATABASE_URL`: PostgreSQL connection string
+- `OLLAMA_BASE_URL`: Ollama API endpoint (default: http://localhost:11434)
+
+### Supported Document Formats
+
+- **PDF**: `.pdf`
+- **Text**: `.txt`, `.md`
+- **Word**: `.docx`
+- **Excel**: `.xlsx`, `.csv`
+- **HTML**: `.html`, `.htm`
+- **Code files**: `.js`, `.py`, `.java`, `.c`, `.cpp`, and many more
+
+## Testing
+
+### Backend Tests
+
+Run backend tests with pytest:
 
 ```bash
-node build.mjs
+pytest tests/backend/
 ```
 
-### Watch Mode
+### Frontend Tests
 
-```bash
-node build.mjs --watch
-```
-
-### Type Checking
-
-```bash
-npm run check
-```
-
-### Run Tests
+Run frontend tests with vitest:
 
 ```bash
 npm test
 ```
 
-## Database Schema
-
-The application uses three main tables:
-
-1. **documents**: Stores uploaded documents and their extracted text
-2. **conversations**: Links documents to chat conversations
-3. **messages**: Stores individual chat messages (user and AI)
-
-## Setting Up Ollama (Optional)
-
-For AI chat functionality, you need Ollama running:
-
-1. Install Ollama from https://ollama.ai
-2. Pull a model: `ollama pull llama2`
-3. Start Ollama: `ollama serve`
-4. The app will automatically connect to http://localhost:11434
+The test suites cover:
+- Document parsing logic for various file formats
+- API endpoint functionality
+- React component behavior and user interactions
 
 ## Troubleshooting
 
-### "Cannot connect to Ollama"
-- Make sure Ollama is running on port 11434
-- Or set the `OLLAMA_BASE_URL` environment variable to your Ollama server
+### Ollama Connection Issues
 
-### "Database connection failed"
-- Verify `DATABASE_URL` is set correctly
-- Run `npm run db:push` to create/update tables
+If you see "Failed to fetch Ollama models":
+1. Ensure Ollama is running: `ollama serve`
+2. Verify the OLLAMA_BASE_URL in your environment
+3. Check that you have at least one model pulled: `ollama list`
 
-### Build errors
-- Delete `node_modules` and `dist` folders
-- Run `npm install` again
-- Run `node build.mjs`
+### Database Connection Issues
+
+1. Verify PostgreSQL is running
+2. Check DATABASE_URL is correct
+3. Ensure the database exists: `createdb docuchat`
+
+### Port Already in Use
+
+If port 5000 or 8000 is already in use:
+1. Change the PORT environment variable
+2. Update the proxy configuration in `vite.config.js`
+3. Update the dev script in `package.json`
+
+### File Upload Errors
+
+- Maximum file size is 10MB
+- Ensure the file format is supported
+- Check that the document contains extractable text (images without OCR are not yet supported)
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'Add amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- [Ollama](https://ollama.ai/) for local LLM inference
+- [FastAPI](https://fastapi.tiangolo.com/) for the backend framework
+- [React](https://react.dev/) for the frontend framework
+- [TanStack Query](https://tanstack.com/query) for data fetching
+- All the open-source libraries that make this project possible
