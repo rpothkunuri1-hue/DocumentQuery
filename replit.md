@@ -1,9 +1,28 @@
 # DocuChat - Document Q&A Application
 
 ## Overview
-DocuChat is a comprehensive document Q&A application that allows users to upload various document types and have intelligent conversations about their content using Ollama local models. The application features a ChatGPT-inspired interface with streaming responses, conversation memory, advanced message actions, extensive file format support, document collections, bulk upload processing, document comparison, and model comparison capabilities.
+DocuChat is a streamlined document Q&A application that allows users to upload various document types and have intelligent conversations about their content using Ollama local models. The application features a ChatGPT-inspired interface with streaming responses, conversation memory, swipe-to-delete gestures, OCR support for images, and comprehensive export capabilities.
 
-## Recent Updates - October 6, 2025
+## Recent Updates - October 8, 2025
+
+### ✅ Latest Enhancements - Compact & Feature-Rich
+
+#### New Features Implemented
+1. **Swipe-to-Delete Gestures**: Touch-friendly document deletion with visual feedback - no more clutter from delete icons
+2. **OCR Support**: Extract text from images (PNG, JPG, JPEG, GIF, BMP, TIFF) using Tesseract.js
+3. **Export Capabilities**: 
+   - PDF export with professional formatting
+   - Markdown export with full conversation history
+   - JSON export for programmatic access
+4. **Streamlined Codebase**: Removed unused dependencies and features for a compact, focused app
+
+#### Technical Cleanup
+- Removed unused pages: Collections, Comparisons, Jobs
+- Removed testing dependencies: @testing-library/*, vitest, jsdom
+- Cleaned up test files and directories
+- Fixed critical prop shadowing bug in ChatInterface (document → currentDocument)
+
+## Previous Updates - October 6, 2025
 
 ### ✅ UI Enhancement - Multi Button & Sidebar Toggle (Just Now)
 
@@ -212,35 +231,27 @@ headers: isFormData
 - **JSON Export**: Complete data export for programmatic access
 
 ### Tech Stack
-- **Frontend**: React 18, TypeScript, TanStack Query v5, Wouter (routing), Lucide React Icons, Tailwind CSS
-- **Backend**: Express.js, Node.js 20, Multer (file uploads)
-- **AI**: Ollama integration for document Q&A and analysis
-- **Queue System**: BullMQ for background job processing
-- **Caching**: IORedis for response caching
+- **Frontend**: React 18, Vite, Lucide React Icons, CSS
+- **Backend**: FastAPI (Python), Uvicorn
+- **Database**: SQLAlchemy with PostgreSQL
+- **AI**: Ollama integration for document Q&A
 - **File Processing**: 
-  - pdf-parse (PDF)
-  - mammoth (DOCX)
-  - csv-parser (CSV)
-  - xlsx (Excel)
-  - cheerio (HTML)
-  - marked (Markdown)
-  - Tesseract.js (OCR)
-- **Storage**: In-memory (MemStorage) - ready for PostgreSQL/Neon upgrade
+  - PyPDF2 (PDF)
+  - python-docx (DOCX)
+  - openpyxl, pandas (Excel, CSV)
+  - BeautifulSoup4 (HTML)
+  - pytesseract + Pillow (OCR for images)
+  - reportlab (PDF export)
 
 ### Key Features Summary
-1. ✅ **Document Collections** - Organize documents into groups
-2. ✅ **Bulk Upload** - Queue-based multi-file processing
-3. ✅ **Document Comparison** - AI-powered comparison analysis
-4. ✅ **Model Comparison** - Test multiple models side-by-side
-5. ✅ **OCR Processing** - Extract text from images
-6. ✅ **Enhanced Chunking** - Advanced document indexing
-7. ✅ **Version History** - Track document changes
-8. ✅ **Multi-Document Chat** - Query multiple documents simultaneously
-9. ✅ **Message Actions** - Full conversation control
-10. ✅ **Smart Chat Interface** - Streaming responses with animations
-11. ✅ **Export Options** - JSON, Markdown, PDF formats
-12. ✅ **Model Selection** - Dynamic Ollama model dropdown
-13. ✅ **Dark Mode** - Complete theme system
+1. ✅ **OCR Processing** - Extract text from images with pytesseract
+2. ✅ **Swipe-to-Delete** - Touch-friendly document deletion with visual feedback
+3. ✅ **Export Options** - PDF, Markdown, and JSON formats with one click
+4. ✅ **Message Actions** - Copy, regenerate, edit, rate, and delete messages
+5. ✅ **Smart Chat Interface** - Streaming responses with loading animations
+6. ✅ **Model Selection** - Dynamic Ollama model dropdown
+7. ✅ **Dark Mode** - Complete theme system with persistent preferences
+8. ✅ **Multi-Format Support** - 30+ file formats including documents, spreadsheets, code, and images
 
 ### Environment Variables
 - `OLLAMA_BASE_URL`: Ollama server URL (default: http://localhost:11434)
@@ -272,57 +283,50 @@ headers: isFormData
 ```
 client/
   src/
-    pages/
-      Collections.tsx      # Collection management with stats
-      Comparisons.tsx      # Document comparison interface
-      Jobs.tsx            # Bulk upload & job monitoring
     components/
-      ChatInterface.tsx    # Enhanced with message actions
-      DocumentList.tsx     # Document list with selection
-      UploadModal.tsx     # Multi-format upload
+      ChatInterface.jsx    # Enhanced with export and message actions
+      DocumentList.jsx     # Swipe-to-delete with touch gestures
+      UploadModal.jsx      # Multi-format upload including images
     lib/
-      queryClient.ts      # TanStack Query with FormData fix
-    App.tsx              # Main app with routing & navigation
-server/
-  routes.ts             # All API endpoints (collections, jobs, comparisons, etc.)
-  storage.ts            # Enhanced storage interface with all CRUD operations
-  index.ts             # Server entry point
-shared/
-  schema.ts            # Complete database schema (9 tables)
+      queryClient.js       # Fetch wrapper
+    App.jsx               # Main app with theme and model selection
+    styles.css            # Complete styling with dark mode
+app/
+  routes.py              # All API endpoints (chat, upload, export, etc.)
+  document_parser.py     # Text extraction with OCR support
+  database.py            # Database connection and setup
+  models.py              # SQLAlchemy models
+  init_db.py             # Database initialization
+main.py                 # FastAPI entry point
 ```
 
 ### Running the Project
-- **Development**: `npm run dev` (runs `node dev.mjs`)
-- **Build**: `npm run build`
-- **Production**: `npm run start`
-- **Type Check**: `npm run check`
+- **Development**: `npm run dev` (starts Python backend on port 8000 and Vite frontend on port 5000)
+- **Frontend Build**: `npm run build`
+- **Production**: `npm run start` (serves built frontend with Python backend)
 
 ### Development Notes
 
-#### FormData Upload Best Practice
-When uploading files via `apiRequest`:
-- The helper automatically detects FormData bodies
-- Skips Content-Type header for proper multipart handling
-- Browser automatically sets correct multipart/form-data boundaries
-- No manual header configuration needed
+#### Export Functionality
+- PDF: Professional formatting with document metadata, summary, and key points
+- Markdown: Full conversation history with proper formatting
+- JSON: Complete data export including all conversations and messages
 
-#### Job Queue System
-- Jobs are created with status: 'queued'
-- Background processor updates status to 'processing', then 'completed' or 'failed'
-- Progress can be tracked in real-time (0-100)
-- Failed jobs include error messages
+#### OCR Integration
+- Supports PNG, JPG, JPEG, GIF, BMP, TIFF formats
+- Uses pytesseract for text extraction
+- Automatically processes images on upload
 
-#### Document Comparison Flow
-1. Select 2-3 documents from the comparison page
-2. Click "Compare Documents" to generate AI analysis
-3. System creates comparison record with results
-4. View comparison history in the list below
+#### Swipe Gestures
+- Touch-based deletion with visual feedback (red "Delete" reveal)
+- Configurable swipe threshold (60px default)
+- Smooth animations with CSS transitions
+- Works on both mobile and desktop (with mouse drag)
 
-#### Model Comparison Flow
-1. Upload document and start chat
-2. Use model comparison feature in chat interface
-3. Enter query and select multiple models
-4. View responses side-by-side with performance metrics
+#### Critical Bug Fix (Oct 8, 2025)
+- Fixed document prop shadowing in ChatInterface
+- Renamed `document` prop to `currentDocument` to avoid conflicts with global `document` object
+- This fix enables all export functionality to work correctly
 
 ### Notes
 - Application runs on port 5000 (only non-firewalled port)
@@ -333,11 +337,9 @@ When uploading files via `apiRequest`:
 - Architect-approved implementation with comprehensive testing
 
 ### Future Enhancement Opportunities
-1. PostgreSQL/Neon database integration (schema ready)
-2. Vector embeddings for semantic search
-3. Redis caching for AI responses
-4. Advanced diff visualization for document comparison
-5. Email notifications for completed jobs
-6. Document sharing and collaboration features
-7. API rate limiting and authentication
-8. Advanced analytics and reporting
+1. Vector embeddings for semantic search with document chunks
+2. Redis caching for AI responses to speed up repeated queries
+3. Multi-document chat to query across multiple documents
+4. Document collections for better organization
+5. API rate limiting and authentication for production deployment
+6. Advanced export options (custom templates, selective content)
