@@ -4,7 +4,7 @@ DocuChat is an intelligent document chat application that enables users to uploa
 
 ## Features
 
-- **Multi-Format Support**: Upload and process PDF, TXT, DOCX, CSV, Excel, MD, HTML, and image files (PNG, JPG, JPEG, GIF, BMP, TIFF)
+- **Multi-Format Support**: Upload and process PDF, TXT, CSV, Excel, MD, HTML, and image files (PNG, JPG, JPEG, GIF, BMP, TIFF)
 - **OCR Support**: Extract text from images using Tesseract OCR for document analysis
 - **Export Capabilities**: Export documents and conversations to PDF, Markdown, or JSON formats
 - **Real-Time Streaming**: Get instant responses with streaming AI-generated answers
@@ -23,9 +23,8 @@ DocuChat is an intelligent document chat application that enables users to uploa
 - **Ollama**: Local language model inference
 - **Python Document Parsers**:
   - PyPDF2 for PDF files
-  - python-docx for Word documents
   - openpyxl for Excel files
-  - pandas for CSV files
+  - Python built-in csv module for CSV files
   - beautifulsoup4 for HTML parsing
   - pytesseract + Pillow for OCR image processing
   - reportlab for PDF export generation
@@ -230,11 +229,12 @@ docuchat/
 
 - **PDF**: `.pdf`
 - **Text**: `.txt`, `.md`
-- **Word**: `.docx`
 - **Excel**: `.xlsx`, `.csv`
 - **HTML**: `.html`, `.htm`
 - **Images (OCR)**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.tiff`
 - **Code files**: `.js`, `.py`, `.java`, `.c`, `.cpp`, and many more
+
+**Note**: DOCX support was removed to reduce dependencies and maintain a lighter application.
 
 ## Testing
 
