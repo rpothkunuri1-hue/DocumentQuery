@@ -16,7 +16,7 @@ DocuChat employs a client-server architecture. The frontend is built with React 
 - **Export Options:** PDF export with professional formatting, Markdown export for conversation history, and JSON export for programmatic access.
 
 **Technical Implementations & Feature Specifications:**
-- **Document Management:** Supports over 30 file formats including PDFs, DOCX, TXT, spreadsheets, web formats, and various source code files. OCR is implemented for image file types (PNG, JPG, JPEG, GIF, BMP, TIFF) using `pytesseract`.
+- **Document Management:** Supports over 30 file formats including PDFs, TXT, spreadsheets (Excel), web formats (HTML, MD), and various source code files. OCR is implemented for image file types (PNG, JPG, JPEG, GIF, BMP, TIFF) using `pytesseract`. Note: DOCX support removed to reduce dependencies.
 - **Chat Interface:** Provides streaming AI responses, dynamic Ollama model selection, and full conversation memory.
 - **Data Handling:** Advanced document indexing with configurable chunking system for improved search.
 - **Error Handling:** Graceful handling of Ollama connection errors.

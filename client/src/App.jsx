@@ -231,7 +231,7 @@ export default function App() {
               <h2>Welcome to DocuChat</h2>
               <p>Upload a document to start having intelligent conversations about its content.</p>
               <div className="features">
-                <p>✓ Support for PDF, TXT, DOCX, CSV, MD, HTML, images (OCR), and more</p>
+                <p>✓ Support for PDF, TXT, CSV, Excel, MD, HTML, images (OCR), and more</p>
                 <p>✓ Real-time streaming responses with conversation memory</p>
                 <p>✓ Export to PDF, Markdown, or JSON</p>
                 <p>✓ Swipe to delete documents • Edit, regenerate, and rate messages</p>
