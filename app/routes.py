@@ -1,8 +1,6 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Request
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
-from app.database import get_db
-from app import models
+from app.file_storage import FileStorage
 from app.document_parser import (
     extract_text_from_pdf, extract_text_from_docx, extract_text_from_txt,
     extract_text_from_csv, extract_text_from_excel, extract_text_from_markdown,
@@ -61,31 +59,29 @@ async def get_models():
     return []
 
 @router.get("/api/documents")
-async def get_documents(db: Session = Depends(get_db)):
+async def get_documents():
     """Get all documents"""
-    documents = db.query(models.Document).all()
+    documents = FileStorage.get_all_documents()
     return documents
 
 @router.get("/api/documents/{document_id}")
-async def get_document(document_id: str, db: Session = Depends(get_db)):
+async def get_document(document_id: str):
     """Get single document"""
-    document = db.query(models.Document).filter(models.Document.id == document_id).first()
+    document = FileStorage.get_document(document_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
     return document
 
 @router.delete("/api/documents/{document_id}")
-async def delete_document(document_id: str, db: Session = Depends(get_db)):
+async def delete_document(document_id: str):
     """Delete document"""
-    document = db.query(models.Document).filter(models.Document.id == document_id).first()
-    if not document:
+    success = FileStorage.delete_document(document_id)
+    if not success:
         raise HTTPException(status_code=404, detail="Document not found")
-    db.delete(document)
-    db.commit()
     return {"success": True}
 
 @router.post("/api/documents/upload")
-async def upload_document(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_document(file: UploadFile = File(...)):
     """Upload document with auto text extraction"""
     try:
         if not file.filename:
@@ -129,16 +125,13 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
         else:
             raise HTTPException(status_code=400, detail="Unsupported file type")
         
-        # Create document in database
-        document = models.Document(
+        # Create document in file storage
+        document = FileStorage.create_document(
             name=file.filename,
             type=mimetype,
             size=file_size,
             content=content
         )
-        db.add(document)
-        db.commit()
-        db.refresh(document)
         
         # Auto-generate summary with Ollama (optional, async)
         try:
@@ -162,11 +155,12 @@ Provide the response in JSON format: {{"summary": "...", "briefSummary": "...", 
                     data = response.json()
                     try:
                         parsed_summary = json.loads(data.get("response", "{}"))
-                        document.summary = parsed_summary.get("summary")
-                        document.brief_summary = parsed_summary.get("briefSummary")
-                        document.key_points = parsed_summary.get("keyPoints", [])
-                        db.commit()
-                        db.refresh(document)
+                        FileStorage.update_document(document["id"], {
+                            "summary": parsed_summary.get("summary"),
+                            "brief_summary": parsed_summary.get("briefSummary"),
+                            "key_points": parsed_summary.get("keyPoints", [])
+                        })
+                        document = FileStorage.get_document(document["id"])
                     except:
                         pass
         except Exception as e:
@@ -182,25 +176,20 @@ Provide the response in JSON format: {{"summary": "...", "briefSummary": "...", 
 # ==================== CONVERSATION ENDPOINTS ====================
 
 @router.get("/api/conversations/{document_id}")
-async def get_or_create_conversation(document_id: str, db: Session = Depends(get_db)):
+async def get_or_create_conversation(document_id: str):
     """Get or create conversation for a document"""
     try:
         # Check if document exists
-        document = db.query(models.Document).filter(models.Document.id == document_id).first()
+        document = FileStorage.get_document(document_id)
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
         
         # Try to find existing conversation
-        conversation = db.query(models.Conversation).filter(
-            models.Conversation.document_id == document_id
-        ).first()
+        conversation = FileStorage.get_conversation_by_document(document_id)
         
         # Create new conversation if none exists
         if not conversation:
-            conversation = models.Conversation(document_id=document_id)
-            db.add(conversation)
-            db.commit()
-            db.refresh(conversation)
+            conversation = FileStorage.create_conversation(document_id=document_id)
         
         return conversation
     except HTTPException:
@@ -209,10 +198,7 @@ async def get_or_create_conversation(document_id: str, db: Session = Depends(get
         raise HTTPException(status_code=500, detail=f"Failed to get conversation: {str(e)}")
 
 @router.post("/api/conversations/multi")
-async def create_multi_doc_conversation(
-    request: MultiDocConversationRequest,
-    db: Session = Depends(get_db)
-):
+async def create_multi_doc_conversation(request: MultiDocConversationRequest):
     """Create multi-document conversation"""
     try:
         if not request.documentIds or len(request.documentIds) == 0:
@@ -220,15 +206,12 @@ async def create_multi_doc_conversation(
         
         # Verify documents exist
         for doc_id in request.documentIds:
-            document = db.query(models.Document).filter(models.Document.id == doc_id).first()
+            document = FileStorage.get_document(doc_id)
             if not document:
                 raise HTTPException(status_code=404, detail=f"Document {doc_id} not found")
         
         # Create conversation with multiple documents
-        conversation = models.Conversation(document_ids=request.documentIds)
-        db.add(conversation)
-        db.commit()
-        db.refresh(conversation)
+        conversation = FileStorage.create_conversation(document_ids=request.documentIds)
         
         return conversation
     except HTTPException:
@@ -237,20 +220,16 @@ async def create_multi_doc_conversation(
         raise HTTPException(status_code=500, detail=f"Failed to create multi-document conversation: {str(e)}")
 
 @router.get("/api/messages/{conversation_id}")
-async def get_messages(conversation_id: str, db: Session = Depends(get_db)):
+async def get_messages(conversation_id: str):
     """Get messages for a conversation"""
     try:
         # Verify conversation exists
-        conversation = db.query(models.Conversation).filter(
-            models.Conversation.id == conversation_id
-        ).first()
+        conversation = FileStorage.get_conversation(conversation_id)
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
         
-        # Get messages ordered by creation time
-        messages = db.query(models.Message).filter(
-            models.Message.conversation_id == conversation_id
-        ).order_by(models.Message.created_at).all()
+        # Get messages
+        messages = FileStorage.get_messages(conversation_id)
         
         return messages
     except HTTPException:
@@ -261,8 +240,7 @@ async def get_messages(conversation_id: str, db: Session = Depends(get_db)):
 # ==================== CHAT ENDPOINTS WITH SSE STREAMING ====================
 
 async def stream_chat_response(
-    db: Session,
-    document: models.Document,
+    document: dict,
     conversation_id: str,
     question: str,
     model_name: str,
@@ -271,18 +249,11 @@ async def stream_chat_response(
     """Stream chat response using SSE format"""
     try:
         # Validate document content
-        if not document.content or document.content.strip() == "" or len(document.content.strip()) < 10:
+        if not document.get("content") or document["content"].strip() == "" or len(document["content"].strip()) < 10:
             refusal_message = "I cannot answer questions about this document because it appears to be empty or contains insufficient content. Please upload a document with readable text."
             
-            # Update assistant message in DB
-            assistant_msg = db.query(models.Message).filter(
-                models.Message.conversation_id == conversation_id,
-                models.Message.role == "assistant"
-            ).order_by(models.Message.created_at.desc()).first()
-            
-            if assistant_msg:
-                assistant_msg.content = refusal_message
-                db.commit()
+            # Update assistant message
+            FileStorage.update_last_message(conversation_id, refusal_message)
             
             yield f'data: {json.dumps({"type": "token", "content": refusal_message})}\n\n'
             yield f'data: {json.dumps({"type": "done"})}\n\n'
@@ -303,7 +274,7 @@ STRICT RULES:
 6. If multiple interpretations are possible based on the document, present all relevant perspectives found in the document
 
 DOCUMENT CONTENT:
-{document.content}
+{document["content"]}
 
 CONVERSATION HISTORY:
 {context_history}
@@ -360,17 +331,10 @@ RESPONSE INSTRUCTIONS:
                     warning_message = "\n\n⚠️ Note: This response may not be based solely on the document content. Please verify the information against the source document."
                     full_response += warning_message
                     yield f'data: {json.dumps({"type": "token", "content": warning_message})}\n\n'
-                    print(f"Warning: Response may be out of scope for document: {document.id}")
+                    print(f"Warning: Response may be out of scope for document: {document['id']}")
                 
-                # Update assistant message in DB
-                assistant_msg = db.query(models.Message).filter(
-                    models.Message.conversation_id == conversation_id,
-                    models.Message.role == "assistant"
-                ).order_by(models.Message.created_at.desc()).first()
-                
-                if assistant_msg:
-                    assistant_msg.content = full_response
-                    db.commit()
+                # Update assistant message
+                FileStorage.update_last_message(conversation_id, full_response)
                 
                 yield f'data: {json.dumps({"type": "done"})}\n\n'
                 
@@ -381,67 +345,54 @@ RESPONSE INSTRUCTIONS:
         yield f'data: {json.dumps({"type": "done"})}\n\n'
 
 @router.post("/api/chat")
-async def chat(request: ChatRequest, db: Session = Depends(get_db)):
+async def chat(request: ChatRequest):
     """Single document chat with SSE streaming"""
     try:
         if not request.question:
             raise HTTPException(status_code=400, detail="Question is required")
         
         # Get document
-        document = db.query(models.Document).filter(
-            models.Document.id == request.documentId
-        ).first()
+        document = FileStorage.get_document(request.documentId)
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
         
         # Get or create conversation
         conversation_id = request.conversationId
         if not conversation_id:
-            conversation = models.Conversation(document_id=request.documentId)
-            db.add(conversation)
-            db.commit()
-            db.refresh(conversation)
-            conversation_id = conversation.id
+            conversation = FileStorage.create_conversation(document_id=request.documentId)
+            conversation_id = conversation["id"]
         
         # Create user message
-        user_message = models.Message(
-            conversation_id=conversation_id,
+        user_message = FileStorage.add_message(
+            conversation_id,
             role="user",
             content=request.question
         )
-        db.add(user_message)
-        db.commit()
         
         # Get previous messages for context (last 6)
-        previous_messages = db.query(models.Message).filter(
-            models.Message.conversation_id == conversation_id
-        ).order_by(models.Message.created_at).all()
-        
+        all_messages = FileStorage.get_messages(conversation_id)
         context_messages = [
-            {"role": msg.role, "content": msg.content}
-            for msg in previous_messages[-6:]
+            {"role": msg["role"], "content": msg["content"]}
+            for msg in all_messages[-6:]
         ]
         
         # Create assistant message placeholder
-        assistant_message = models.Message(
-            conversation_id=conversation_id,
+        assistant_message = FileStorage.add_message(
+            conversation_id,
             role="assistant",
             content=""
         )
-        db.add(assistant_message)
-        db.commit()
-        db.refresh(assistant_message)
         
         # Determine model to use
         model_name = request.model or OLLAMA_MODEL
         
         async def generate():
             # Send message ID first
-            yield f'data: {json.dumps({"type": "message_id", "messageId": assistant_message.id})}\n\n'
+            yield f'data: {json.dumps({"type": "message_id", "messageId": assistant_message["id"]})}\n\n'
             
             # Stream the response
             async for chunk in stream_chat_response(
-                db, document, conversation_id, request.question, model_name, context_messages
+                document, conversation_id, request.question, model_name, context_messages
             ):
                 yield chunk
         
@@ -462,8 +413,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Failed to process chat: {str(e)}")
 
 async def stream_multi_chat_response(
-    db: Session,
-    documents: List[models.Document],
+    documents: List[dict],
     conversation_id: str,
     question: str,
     model_name: str,
@@ -474,26 +424,19 @@ async def stream_multi_chat_response(
         # Validate document content and filter
         valid_content_documents = [
             doc for doc in documents
-            if doc.content and doc.content.strip() and len(doc.content.strip()) >= 10
+            if doc.get("content") and doc["content"].strip() and len(doc["content"].strip()) >= 10
         ]
         
         excluded_docs = [
             doc for doc in documents
-            if not doc.content or not doc.content.strip() or len(doc.content.strip()) < 10
+            if not doc.get("content") or not doc["content"].strip() or len(doc["content"].strip()) < 10
         ]
         
         if len(valid_content_documents) == 0:
             refusal_message = "I cannot answer questions about these documents because they appear to be empty or contain insufficient content. Please upload documents with readable text."
             
-            # Update assistant message in DB
-            assistant_msg = db.query(models.Message).filter(
-                models.Message.conversation_id == conversation_id,
-                models.Message.role == "assistant"
-            ).order_by(models.Message.created_at.desc()).first()
-            
-            if assistant_msg:
-                assistant_msg.content = refusal_message
-                db.commit()
+            # Update assistant message
+            FileStorage.update_last_message(conversation_id, refusal_message)
             
             yield f'data: {json.dumps({"type": "token", "content": refusal_message})}\n\n'
             yield f'data: {json.dumps({"type": "done"})}\n\n'
@@ -502,19 +445,19 @@ async def stream_multi_chat_response(
         # Warn if some documents were excluded
         warning_prefix = ""
         if len(excluded_docs) > 0:
-            excluded_names = ", ".join([f'"{doc.name}"' for doc in excluded_docs])
+            excluded_names = ", ".join([f'"{doc["name"]}"' for doc in excluded_docs])
             warning_prefix = f"⚠️ Note: {len(excluded_docs)} document(s) were excluded due to insufficient content: {excluded_names}\n\nAnalyzing remaining {len(valid_content_documents)} document(s):\n\n"
             yield f'data: {json.dumps({"type": "token", "content": warning_prefix})}\n\n'
             print(f"Excluded {len(excluded_docs)} documents from multi-doc chat: {excluded_names}")
         
         # Build document list and combined content
         document_list = ", ".join([
-            f'[Document {idx + 1}: "{doc.name}"]'
+            f'[Document {idx + 1}: "{doc["name"]}"]'
             for idx, doc in enumerate(valid_content_documents)
         ])
         
         combined_content = "\n\n".join([
-            f'=== DOCUMENT {idx + 1}: "{doc.name}" ===\n{doc.content}\n=== END OF DOCUMENT {idx + 1} ==='
+            f'=== DOCUMENT {idx + 1}: "{doc["name"]}" ===\n{doc["content"]}\n=== END OF DOCUMENT {idx + 1} ==='
             for idx, doc in enumerate(valid_content_documents)
         ])
         
@@ -549,7 +492,7 @@ RESPONSE INSTRUCTIONS:
 - Always cite which document you're referencing (e.g., "According to Document 1 (filename.pdf)...")
 - If comparing documents, only compare information that exists in both
 - If the answer is not in any document, respond with: "I cannot answer this question because the information is not present in the provided documents. Please ask a question about the documents' content."
-- Be thorough but stay within the documents' scope"""
+- Be helpful and thorough, but stay within the documents' scope"""
 
         # Call Ollama API with streaming
         async with httpx.AsyncClient(timeout=120.0) as client:
@@ -561,7 +504,7 @@ RESPONSE INSTRUCTIONS:
                 if response.status_code != 200:
                     raise Exception(f"Ollama API error: {response.status_code}")
                 
-                full_response = ""
+                full_response = warning_prefix
                 async for line in response.aiter_lines():
                     if line.strip():
                         try:
@@ -573,45 +516,8 @@ RESPONSE INSTRUCTIONS:
                         except json.JSONDecodeError:
                             continue
                 
-                # Post-response verification
-                has_document_reference = len(full_response) > 50 and (
-                    "document" in full_response.lower() or
-                    bool(re.search(r'document\s+\d+', full_response.lower())) or
-                    "according to" in full_response.lower() or
-                    "the text" in full_response.lower() or
-                    "states that" in full_response.lower() or
-                    "mentions" in full_response.lower() or
-                    any(doc.name.lower()[:15] in full_response.lower() for doc in valid_content_documents) or
-                    bool(re.search(r'["\'].*["\']', full_response))
-                )
-                
-                is_refusal = (
-                    "cannot answer" in full_response.lower() or
-                    "not present in" in full_response.lower() or
-                    "not found in" in full_response.lower() or
-                    "information is not" in full_response.lower()
-                )
-                
-                # Add warning if response doesn't reference documents
-                if not has_document_reference and not is_refusal and len(full_response) > 20:
-                    warning_message = "\n\n⚠️ Note: This response may not be based solely on the provided documents. Please verify the information against the source documents."
-                    full_response += warning_message
-                    yield f'data: {json.dumps({"type": "token", "content": warning_message})}\n\n'
-                    doc_ids = [doc.id for doc in documents]
-                    print(f"Warning: Response may be out of scope for multi-document chat: {doc_ids}")
-                
-                # Prepend any document exclusion warnings to final stored message
-                final_message = warning_prefix + full_response
-                
-                # Update assistant message in DB
-                assistant_msg = db.query(models.Message).filter(
-                    models.Message.conversation_id == conversation_id,
-                    models.Message.role == "assistant"
-                ).order_by(models.Message.created_at.desc()).first()
-                
-                if assistant_msg:
-                    assistant_msg.content = final_message
-                    db.commit()
+                # Update assistant message
+                FileStorage.update_last_message(conversation_id, full_response)
                 
                 yield f'data: {json.dumps({"type": "done"})}\n\n'
                 
@@ -622,7 +528,7 @@ RESPONSE INSTRUCTIONS:
         yield f'data: {json.dumps({"type": "done"})}\n\n'
 
 @router.post("/api/chat/multi")
-async def multi_chat(request: MultiChatRequest, db: Session = Depends(get_db)):
+async def multi_chat(request: MultiChatRequest):
     """Multi-document chat with SSE streaming"""
     try:
         if not request.question:
@@ -634,61 +540,48 @@ async def multi_chat(request: MultiChatRequest, db: Session = Depends(get_db)):
         # Get documents
         documents = []
         for doc_id in request.documentIds:
-            doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
-            if doc:
-                documents.append(doc)
-        
-        if len(documents) == 0:
-            raise HTTPException(status_code=404, detail="No valid documents found")
+            document = FileStorage.get_document(doc_id)
+            if not document:
+                raise HTTPException(status_code=404, detail=f"Document {doc_id} not found")
+            documents.append(document)
         
         # Get or create conversation
         conversation_id = request.conversationId
         if not conversation_id:
-            conversation = models.Conversation(document_ids=request.documentIds)
-            db.add(conversation)
-            db.commit()
-            db.refresh(conversation)
-            conversation_id = conversation.id
+            conversation = FileStorage.create_conversation(document_ids=request.documentIds)
+            conversation_id = conversation["id"]
         
         # Create user message
-        user_message = models.Message(
-            conversation_id=conversation_id,
+        user_message = FileStorage.add_message(
+            conversation_id,
             role="user",
             content=request.question
         )
-        db.add(user_message)
-        db.commit()
         
         # Get previous messages for context (last 6)
-        previous_messages = db.query(models.Message).filter(
-            models.Message.conversation_id == conversation_id
-        ).order_by(models.Message.created_at).all()
-        
+        all_messages = FileStorage.get_messages(conversation_id)
         context_messages = [
-            {"role": msg.role, "content": msg.content}
-            for msg in previous_messages[-6:]
+            {"role": msg["role"], "content": msg["content"]}
+            for msg in all_messages[-6:]
         ]
         
         # Create assistant message placeholder
-        assistant_message = models.Message(
-            conversation_id=conversation_id,
+        assistant_message = FileStorage.add_message(
+            conversation_id,
             role="assistant",
             content=""
         )
-        db.add(assistant_message)
-        db.commit()
-        db.refresh(assistant_message)
         
         # Determine model to use
         model_name = request.model or OLLAMA_MODEL
         
         async def generate():
             # Send message ID first
-            yield f'data: {json.dumps({"type": "message_id", "messageId": assistant_message.id})}\n\n'
+            yield f'data: {json.dumps({"type": "message_id", "messageId": assistant_message["id"]})}\n\n'
             
             # Stream the response
             async for chunk in stream_multi_chat_response(
-                db, documents, conversation_id, request.question, model_name, context_messages
+                documents, conversation_id, request.question, model_name, context_messages
             ):
                 yield chunk
         
@@ -706,203 +599,4 @@ async def multi_chat(request: MultiChatRequest, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         print(f"Multi-chat error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to process multi-document chat: {str(e)}")
-
-# ==================== EXPORT ENDPOINTS ====================
-
-from fastapi.responses import Response
-from datetime import datetime
-
-@router.get("/api/documents/{document_id}/export/json")
-async def export_document_json(document_id: str, db: Session = Depends(get_db)):
-    """Export document as JSON"""
-    try:
-        document = db.query(models.Document).filter(models.Document.id == document_id).first()
-        if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
-        
-        # Get conversations for this document
-        conversations = db.query(models.Conversation).filter(
-            models.Conversation.document_id == document_id
-        ).all()
-        
-        export_data = {
-            "document": {
-                "id": document.id,
-                "name": document.name,
-                "type": document.type,
-                "size": document.size,
-                "uploadedAt": document.uploaded_at.isoformat() if document.uploaded_at else None,
-                "content": document.content,
-                "summary": document.summary,
-                "briefSummary": document.brief_summary,
-                "keyPoints": document.key_points
-            },
-            "conversations": []
-        }
-        
-        # Add conversations and messages
-        for conv in conversations:
-            messages = db.query(models.Message).filter(
-                models.Message.conversation_id == conv.id
-            ).order_by(models.Message.created_at).all()
-            
-            export_data["conversations"].append({
-                "id": conv.id,
-                "createdAt": conv.created_at.isoformat() if conv.created_at else None,
-                "messages": [
-                    {
-                        "id": msg.id,
-                        "role": msg.role,
-                        "content": msg.content,
-                        "createdAt": msg.created_at.isoformat() if msg.created_at else None
-                    }
-                    for msg in messages
-                ]
-            })
-        
-        return Response(
-            content=json.dumps(export_data, indent=2),
-            media_type="application/json",
-            headers={
-                "Content-Disposition": f'attachment; filename="{document.name}_export.json"'
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export document: {str(e)}")
-
-@router.get("/api/documents/{document_id}/export/markdown")
-async def export_document_markdown(document_id: str, db: Session = Depends(get_db)):
-    """Export document as Markdown"""
-    try:
-        document = db.query(models.Document).filter(models.Document.id == document_id).first()
-        if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
-        
-        # Build markdown content
-        md_content = f"# {document.name}\n\n"
-        md_content += f"**Uploaded:** {document.uploaded_at.strftime('%Y-%m-%d %H:%M:%S') if document.uploaded_at else 'Unknown'}\n\n"
-        
-        if document.brief_summary:
-            md_content += f"## Summary\n\n{document.brief_summary}\n\n"
-        
-        if document.key_points:
-            md_content += "## Key Points\n\n"
-            for point in document.key_points:
-                md_content += f"- {point}\n"
-            md_content += "\n"
-        
-        md_content += "## Document Content\n\n"
-        md_content += f"```\n{document.content}\n```\n\n"
-        
-        # Add conversations
-        conversations = db.query(models.Conversation).filter(
-            models.Conversation.document_id == document_id
-        ).all()
-        
-        if conversations:
-            md_content += "## Conversations\n\n"
-            for conv_idx, conv in enumerate(conversations, 1):
-                messages = db.query(models.Message).filter(
-                    models.Message.conversation_id == conv.id
-                ).order_by(models.Message.created_at).all()
-                
-                md_content += f"### Conversation {conv_idx}\n\n"
-                for msg in messages:
-                    role = "**User:**" if msg.role == "user" else "**Assistant:**"
-                    md_content += f"{role} {msg.content}\n\n"
-        
-        return Response(
-            content=md_content,
-            media_type="text/markdown",
-            headers={
-                "Content-Disposition": f'attachment; filename="{document.name}_export.md"'
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export document: {str(e)}")
-
-@router.get("/api/documents/{document_id}/export/pdf")
-async def export_document_pdf(document_id: str, db: Session = Depends(get_db)):
-    """Export document as PDF"""
-    try:
-        document = db.query(models.Document).filter(models.Document.id == document_id).first()
-        if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
-        
-        # Create PDF using reportlab
-        from reportlab.lib.pagesizes import letter
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import inch
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-        from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY
-        
-        # Create PDF in memory
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
-        
-        # Container for the 'Flowable' objects
-        elements = []
-        styles = getSampleStyleSheet()
-        
-        # Title
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=24,
-            textColor='#2563eb',
-            spaceAfter=30,
-        )
-        elements.append(Paragraph(document.name, title_style))
-        elements.append(Spacer(1, 0.2*inch))
-        
-        # Metadata
-        meta_text = f"<b>Uploaded:</b> {document.uploaded_at.strftime('%Y-%m-%d %H:%M:%S') if document.uploaded_at else 'Unknown'}<br/>"
-        meta_text += f"<b>Size:</b> {document.size} bytes<br/>"
-        meta_text += f"<b>Type:</b> {document.type}"
-        elements.append(Paragraph(meta_text, styles['Normal']))
-        elements.append(Spacer(1, 0.3*inch))
-        
-        # Summary
-        if document.brief_summary:
-            elements.append(Paragraph("<b>Summary</b>", styles['Heading2']))
-            elements.append(Spacer(1, 0.1*inch))
-            elements.append(Paragraph(document.brief_summary, styles['Normal']))
-            elements.append(Spacer(1, 0.2*inch))
-        
-        # Key Points
-        if document.key_points:
-            elements.append(Paragraph("<b>Key Points</b>", styles['Heading2']))
-            elements.append(Spacer(1, 0.1*inch))
-            for point in document.key_points:
-                elements.append(Paragraph(f"• {point}", styles['Normal']))
-            elements.append(Spacer(1, 0.2*inch))
-        
-        # Content preview (first 2000 chars)
-        elements.append(Paragraph("<b>Document Content</b>", styles['Heading2']))
-        elements.append(Spacer(1, 0.1*inch))
-        content_preview = document.content[:2000] + ("..." if len(document.content) > 2000 else "")
-        # Escape HTML and preserve formatting
-        content_preview = content_preview.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        content_preview = content_preview.replace('\n', '<br/>')
-        elements.append(Paragraph(content_preview, styles['Normal']))
-        
-        # Build PDF
-        doc.build(elements)
-        buffer.seek(0)
-        
-        return Response(
-            content=buffer.getvalue(),
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": f'attachment; filename="{document.name}_export.pdf"'
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export document: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process multi-chat: {str(e)}")

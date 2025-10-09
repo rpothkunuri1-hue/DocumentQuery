@@ -5,7 +5,6 @@ from fastapi.responses import FileResponse
 import uvicorn
 import os
 from app.routes import router
-from app.init_db import init_database
 
 app = FastAPI(title="DocuChat API")
 
@@ -17,11 +16,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize database on startup
-@app.on_event("startup")
-async def startup_event():
-    init_database()
 
 # Include API routes
 app.include_router(router)
@@ -49,5 +43,5 @@ else:
         return {"message": "DocuChat API is running. Frontend not built yet."}
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("PORT", 5000))
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
