@@ -16,10 +16,6 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 8000
-externalPort = 8000
-
-[[ports]]
 localPort = 36979
 externalPort = 5000
 
@@ -87,7 +83,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=8000 python main.py & npm run dev"
+args = "pkill -f \"PORT=8000 python\" || true; PORT=8000 python main.py & npm run dev"
 waitForPort = 5000
 
 [agent]
