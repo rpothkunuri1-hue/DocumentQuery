@@ -1,7 +1,5 @@
 fastapi
 uvicorn[standard]
-sqlalchemy
-psycopg2-binary
 python-multipart
 pypdf2
 python-docx
@@ -13,18 +11,3 @@ pillow
 httpx
 lxml
 reportlab
-beautifulsoup4
-fastapi
-httpx
-lxml
-openpyxl
-pandas
-pillow
-psycopg2-binary
-pypdf2
-pytesseract
-python-docx
-python-multipart
-reportlab
-sqlalchemy
-uvicorn
