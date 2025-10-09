@@ -1,5 +1,4 @@
 from PyPDF2 import PdfReader
-from docx import Document
 import openpyxl
 import csv
 from bs4 import BeautifulSoup
@@ -27,14 +26,6 @@ async def extract_text_from_pdf(buffer: bytes) -> str:
     except Exception as e:
         raise Exception(f"Failed to extract text from PDF: {str(e)}")
 
-async def extract_text_from_docx(buffer: bytes) -> str:
-    """Extract text from DOCX file"""
-    try:
-        doc = Document(io.BytesIO(buffer))
-        text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
-        return text.strip()
-    except Exception as e:
-        raise Exception(f"Failed to extract text from DOCX: {str(e)}")
 
 async def extract_text_from_txt(buffer: bytes) -> str:
     """Extract text from TXT file"""

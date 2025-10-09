@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse, Response
 from app.file_storage import FileStorage
 from app.document_parser import (
-    extract_text_from_pdf, extract_text_from_docx, extract_text_from_txt,
+    extract_text_from_pdf, extract_text_from_txt,
     extract_text_from_csv, extract_text_from_excel, extract_text_from_markdown,
     extract_text_from_html, extract_text_from_rtf, extract_text_from_code,
     extract_text_from_image,
@@ -110,8 +110,6 @@ async def upload_document(file: UploadFile = File(...)):
         
         if mimetype == "application/pdf":
             content = await extract_text_from_pdf(content_bytes)
-        elif mimetype == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            content = await extract_text_from_docx(content_bytes)
         elif mimetype == "text/plain" or extension == "txt":
             content = await extract_text_from_txt(content_bytes)
         elif mimetype == "text/csv" or extension == "csv":
