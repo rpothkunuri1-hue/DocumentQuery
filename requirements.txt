@@ -2,7 +2,6 @@ fastapi
 uvicorn[standard]
 python-multipart
 pypdf2
-python-docx
 openpyxl
 beautifulsoup4
 pytesseract
