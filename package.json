@@ -5,6 +5,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "PORT=8000 python main.py & vite",
+    "dev:frontend": "vite",
+    "dev:backend": "python main.py",
     "build": "vite build",
     "start": "PORT=5000 python main.py",
     "check": "tsc"
