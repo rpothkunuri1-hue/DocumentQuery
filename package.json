@@ -4,17 +4,13 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:frontend": "vite",
-    "dev:backend": "cross-env PORT=8000 python main.py",
+    "dev": "vite",
+    "dev:backend": "PORT=8000 python main.py",
     "build": "vite build",
-    "start": "cross-env PORT=5000 python main.py",
-    "check": "tsc"
+    "start": "PORT=5000 python main.py"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.60.5",
-    "concurrently": "^9.2.1",
-    "cross-env": "^10.1.0",
     "lucide-react": "^0.453.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -24,12 +20,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
-    "esbuild": "^0.25.0",
     "postcss": "^8.4.47",
-    "tsx": "^4.20.5",
     "vite": "^5.4.20"
-  },
-  "optionalDependencies": {
-    "bufferutil": "^4.0.8"
   }
 }
