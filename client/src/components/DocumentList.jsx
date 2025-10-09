@@ -95,7 +95,7 @@ export default function DocumentList({
             >
               <div className="document-info">
                 <h3>{doc.name}</h3>
-                <p>{new Date(doc.uploadedAt).toLocaleDateString()}</p>
+                <p>{new Date(doc.uploaded_at).toLocaleDateString()}</p>
               </div>
               {!isMobile && (
                 <button
