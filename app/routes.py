@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from app.file_storage import FileStorage
 from app.document_parser import (
     extract_text_from_pdf, extract_text_from_docx, extract_text_from_txt,
@@ -14,6 +14,12 @@ import os
 import httpx
 import json
 import re
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.enums import TA_LEFT
+import io as python_io
 
 router = APIRouter()
 
@@ -600,3 +606,149 @@ async def multi_chat(request: MultiChatRequest):
     except Exception as e:
         print(f"Multi-chat error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process multi-chat: {str(e)}")
+
+# ==================== EXPORT ENDPOINTS ====================
+
+@router.get("/api/documents/{document_id}/export/json")
+async def export_conversation_json(document_id: str):
+    """Export conversation as JSON"""
+    try:
+        document = FileStorage.get_document(document_id)
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        conversation = FileStorage.get_conversation_by_document(document_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="No conversation found for this document")
+        
+        messages = FileStorage.get_messages(conversation["id"])
+        
+        export_data = {
+            "document": {
+                "id": document["id"],
+                "name": document["name"],
+                "type": document["type"]
+            },
+            "conversation": {
+                "id": conversation["id"],
+                "created_at": conversation.get("created_at")
+            },
+            "messages": messages
+        }
+        
+        json_str = json.dumps(export_data, indent=2)
+        return Response(
+            content=json_str,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{document["name"]}_conversation.json"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to export as JSON: {str(e)}")
+
+@router.get("/api/documents/{document_id}/export/markdown")
+async def export_conversation_markdown(document_id: str):
+    """Export conversation as Markdown"""
+    try:
+        document = FileStorage.get_document(document_id)
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        conversation = FileStorage.get_conversation_by_document(document_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="No conversation found for this document")
+        
+        messages = FileStorage.get_messages(conversation["id"])
+        
+        markdown_content = f"# Conversation: {document['name']}\n\n"
+        markdown_content += f"**Document:** {document['name']}\n"
+        markdown_content += f"**Type:** {document['type']}\n\n"
+        markdown_content += "---\n\n"
+        
+        for msg in messages:
+            role_label = "**You:**" if msg["role"] == "user" else "**AI:**"
+            markdown_content += f"{role_label}\n\n{msg['content']}\n\n"
+        
+        return Response(
+            content=markdown_content,
+            media_type="text/markdown",
+            headers={"Content-Disposition": f'attachment; filename="{document["name"]}_conversation.md"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to export as Markdown: {str(e)}")
+
+@router.get("/api/documents/{document_id}/export/pdf")
+async def export_conversation_pdf(document_id: str):
+    """Export conversation as PDF"""
+    try:
+        document = FileStorage.get_document(document_id)
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        conversation = FileStorage.get_conversation_by_document(document_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="No conversation found for this document")
+        
+        messages = FileStorage.get_messages(conversation["id"])
+        
+        buffer = python_io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+        
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            spaceAfter=30
+        )
+        
+        user_style = ParagraphStyle(
+            'UserMessage',
+            parent=styles['Normal'],
+            fontSize=11,
+            leftIndent=20,
+            spaceAfter=12,
+            textColor='#2563EB'
+        )
+        
+        ai_style = ParagraphStyle(
+            'AIMessage',
+            parent=styles['Normal'],
+            fontSize=11,
+            leftIndent=20,
+            spaceAfter=12
+        )
+        
+        story = []
+        
+        story.append(Paragraph(f"Conversation: {document['name']}", title_style))
+        story.append(Paragraph(f"<b>Document:</b> {document['name']}", styles['Normal']))
+        story.append(Paragraph(f"<b>Type:</b> {document['type']}", styles['Normal']))
+        story.append(Spacer(1, 0.5*inch))
+        
+        for msg in messages:
+            if msg["role"] == "user":
+                story.append(Paragraph("<b>You:</b>", user_style))
+                story.append(Paragraph(msg["content"].replace('\n', '<br/>'), user_style))
+            else:
+                story.append(Paragraph("<b>AI:</b>", ai_style))
+                story.append(Paragraph(msg["content"].replace('\n', '<br/>'), ai_style))
+            story.append(Spacer(1, 0.3*inch))
+        
+        doc.build(story)
+        
+        pdf_data = buffer.getvalue()
+        buffer.close()
+        
+        return Response(
+            content=pdf_data,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{document["name"]}_conversation.pdf"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to export as PDF: {str(e)}")
