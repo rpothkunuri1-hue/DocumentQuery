@@ -1,7 +1,7 @@
 from PyPDF2 import PdfReader
 from docx import Document
 import openpyxl
-import pandas as pd
+import csv
 from bs4 import BeautifulSoup
 import pytesseract
 from PIL import Image
@@ -46,9 +46,22 @@ async def extract_text_from_txt(buffer: bytes) -> str:
 async def extract_text_from_csv(buffer: bytes) -> str:
     """Extract text from CSV file"""
     try:
-        df = pd.read_csv(io.BytesIO(buffer))
-        text = df.to_string(index=False)
-        return text.strip()
+        content = buffer.decode("utf-8")
+        reader = csv.reader(io.StringIO(content))
+        rows = list(reader)
+        
+        if not rows:
+            return ""
+        
+        # Format as table-like text
+        col_widths = [max(len(str(row[i])) if i < len(row) else 0 for row in rows) for i in range(max(len(row) for row in rows))]
+        
+        text_lines = []
+        for row in rows:
+            formatted_row = "  ".join(str(cell).ljust(col_widths[i]) if i < len(row) else " " * col_widths[i] for i, cell in enumerate(row))
+            text_lines.append(formatted_row)
+        
+        return "\n".join(text_lines).strip()
     except Exception as e:
         raise Exception(f"Failed to extract text from CSV: {str(e)}")
 
