@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, Upload, Sun, Moon, X, MessageSquare } from 'lucide-react';
+import { Menu, Upload, Sun, Moon, X } from 'lucide-react';
 import DocumentList from './components/DocumentList';
 import ChatInterface from './components/ChatInterface';
 import UploadModal from './components/UploadModal';
@@ -139,13 +139,6 @@ export default function App() {
           <h2>DocuChat</h2>
         </div>
         
-        <nav className="sidebar-nav">
-          <div className="nav-link active" data-testid="link-documents">
-            <MessageSquare size={18} />
-            <span>Documents & Chat</span>
-          </div>
-        </nav>
-
         <div className="sidebar-section-header">
           <h3>Documents</h3>
           <div className="sidebar-header-actions">
