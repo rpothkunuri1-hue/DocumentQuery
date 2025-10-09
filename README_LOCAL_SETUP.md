@@ -103,24 +103,39 @@ PORT=8000
 
 ### Development Mode
 
+**✅ Cross-Platform Compatible** - Works on Windows, macOS, and Linux!
+
 You have two options to run the application:
 
 #### Option 1: Run Both Servers Together (Recommended)
 
 ```bash
+# Activate virtual environment first
+# macOS/Linux:
+source venv/bin/activate
+# Windows:
+venv\Scripts\activate
+
+# Start both servers
 npm run dev
 ```
 
-This starts:
+This uses `concurrently` to start both:
 - Backend (FastAPI) on `http://localhost:8000`
 - Frontend (Vite) on `http://localhost:5000`
+
+Both servers will run together and can be stopped with `Ctrl+C`.
 
 #### Option 2: Run Servers Separately
 
 **Terminal 1 - Backend:**
 ```bash
-source venv/bin/activate  # Activate virtual environment first
-python main.py
+# macOS/Linux:
+source venv/bin/activate
+# Windows:
+venv\Scripts\activate
+
+npm run dev:backend
 ```
 
 **Terminal 2 - Frontend:**
