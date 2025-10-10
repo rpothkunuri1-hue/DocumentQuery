@@ -21,3 +21,9 @@ httpx
 pymupdf
 python-multipart
 uvicorn
+fastapi
+fpdf2
+httpx
+pymupdf
+python-multipart
+uvicorn
