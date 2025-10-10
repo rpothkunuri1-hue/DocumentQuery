@@ -5,7 +5,14 @@ DocuChat is a simplified document viewer application that allows users to upload
 
 ## Recent Changes (October 10, 2025)
 - **Import Complete:** Successfully migrated project to Replit environment with all dependencies installed
-- **Fixed Ollama 500 Error (NEW):** Enhanced error handling for Ollama API integration
+- **Improved Ollama 500 Error Diagnostics (LATEST):** Enhanced logging and error handling for summary generation
+  - Reduced content length from 4000 to 2000 characters to avoid token limits
+  - Increased timeout from 60s to 120s to give Ollama more time to respond
+  - Added detailed logging with [SUMMARY] and [SUMMARY ERROR] prefixes for easy debugging
+  - Logs now show: model name, content length, exact Ollama error response, and full stack traces
+  - Added ReadTimeout exception handling for timeout scenarios
+  - Better background task error handling with detailed logging
+- **Fixed Ollama 500 Error:** Enhanced error handling for Ollama API integration
   - Added specific error handling for 404 (model not found), 500 (server error), and connection errors
   - Detailed logging helps diagnose Ollama configuration issues
   - Prevents crashes when Ollama is unavailable or misconfigured

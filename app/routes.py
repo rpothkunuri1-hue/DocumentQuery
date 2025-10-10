@@ -79,8 +79,8 @@ async def delete_document(document_id: str):
 async def generate_document_summary(content: str, model_name: str) -> str:
     """Generate a summary of the document using Ollama"""
     try:
-        # Limit content for summary (first 4000 characters to avoid token limits)
-        truncated_content = content[:4000] if len(content) > 4000 else content
+        # Limit content for summary (first 2000 characters to avoid token limits)
+        truncated_content = content[:2000] if len(content) > 2000 else content
         
         prompt = f"""Please provide a concise summary of the following document in 2-3 sentences. Focus on the main topics, key points, and overall purpose of the document.
 
@@ -89,42 +89,68 @@ DOCUMENT CONTENT:
 
 SUMMARY:"""
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        print(f"[SUMMARY] Requesting summary for model '{model_name}' (content length: {len(truncated_content)} chars)")
+        
+        async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
                 f"{OLLAMA_BASE_URL}/api/generate",
                 json={"model": model_name, "prompt": prompt, "stream": False}
             )
             
+            print(f"[SUMMARY] Ollama response status: {response.status_code}")
+            
             if response.status_code == 200:
                 data = response.json()
-                return data.get("response", "").strip()
+                summary = data.get("response", "").strip()
+                print(f"[SUMMARY] Successfully generated summary ({len(summary)} chars)")
+                return summary
             elif response.status_code == 404:
-                print(f"Model '{model_name}' not found in Ollama")
+                error_detail = response.text
+                print(f"[SUMMARY ERROR] Model '{model_name}' not found in Ollama: {error_detail}")
                 return ""
             elif response.status_code == 500:
                 error_text = response.text
-                print(f"Ollama server error (500): {error_text}")
+                print(f"[SUMMARY ERROR] Ollama server error (500):")
+                print(f"  Model: {model_name}")
+                print(f"  URL: {OLLAMA_BASE_URL}/api/generate")
+                print(f"  Content length: {len(truncated_content)} chars")
+                print(f"  Response body: {error_text}")
+                try:
+                    error_json = response.json()
+                    print(f"  Parsed error: {error_json}")
+                except:
+                    pass
                 return ""
             else:
-                print(f"Ollama API returned status {response.status_code}: {response.text}")
+                print(f"[SUMMARY ERROR] Ollama API returned status {response.status_code}: {response.text}")
                 return ""
     except httpx.ConnectError as e:
-        print(f"Cannot connect to Ollama at {OLLAMA_BASE_URL}: {e}")
+        print(f"[SUMMARY ERROR] Cannot connect to Ollama at {OLLAMA_BASE_URL}: {e}")
+        return ""
+    except httpx.ReadTimeout as e:
+        print(f"[SUMMARY ERROR] Ollama request timed out after 120s: {e}")
         return ""
     except Exception as e:
-        print(f"Failed to generate summary: {e}")
+        print(f"[SUMMARY ERROR] Failed to generate summary: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         return ""
 
 async def generate_summary_background(document_id: str, content: str, model: str):
     """Generate summary in the background and update document"""
     try:
+        print(f"[BACKGROUND] Starting summary generation for document {document_id}")
         summary = await generate_document_summary(content, model)
         if summary:
+            print(f"[BACKGROUND] Summary completed for document {document_id}")
             FileStorage.update_document(document_id, {"summary": summary, "summary_status": "completed"})
         else:
+            print(f"[BACKGROUND] Summary generation returned empty for document {document_id}")
             FileStorage.update_document(document_id, {"summary_status": "failed"})
     except Exception as e:
-        print(f"Background summary generation failed: {e}")
+        print(f"[BACKGROUND ERROR] Summary generation failed for document {document_id}: {e}")
+        import traceback
+        traceback.print_exc()
         FileStorage.update_document(document_id, {"summary_status": "failed"})
 
 @router.post("/api/documents/upload")
