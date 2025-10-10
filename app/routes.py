@@ -5,8 +5,7 @@ from app.document_parser import (
     extract_text_from_pdf, extract_text_from_txt,
     extract_text_from_csv, extract_text_from_excel, extract_text_from_markdown,
     extract_text_from_html, extract_text_from_rtf, extract_text_from_code,
-    extract_text_from_image,
-    CODE_EXTENSIONS, IMAGE_EXTENSIONS
+    CODE_EXTENSIONS
 )
 from typing import List, Optional, AsyncIterator
 from pydantic import BaseModel
@@ -14,11 +13,7 @@ import os
 import httpx
 import json
 import re
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.enums import TA_LEFT
+from fpdf import FPDF
 import io as python_io
 
 router = APIRouter()
@@ -124,8 +119,6 @@ async def upload_document(file: UploadFile = File(...)):
             content = await extract_text_from_rtf(content_bytes)
         elif extension in CODE_EXTENSIONS:
             content = await extract_text_from_code(content_bytes, extension)
-        elif extension in IMAGE_EXTENSIONS or mimetype.startswith("image/"):
-            content = await extract_text_from_image(content_bytes)
         else:
             raise HTTPException(status_code=400, detail="Unsupported file type")
         
@@ -692,54 +685,40 @@ async def export_conversation_pdf(document_id: str):
         
         messages = FileStorage.get_messages(conversation["id"])
         
-        buffer = python_io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+        # Create PDF using fpdf2
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
         
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=24,
-            spaceAfter=30
-        )
+        # Title
+        pdf.set_font("Helvetica", "B", 20)
+        pdf.cell(0, 10, f"Conversation: {document['name']}", ln=True)
+        pdf.ln(5)
         
-        user_style = ParagraphStyle(
-            'UserMessage',
-            parent=styles['Normal'],
-            fontSize=11,
-            leftIndent=20,
-            spaceAfter=12,
-            textColor='#2563EB'
-        )
+        # Document info
+        pdf.set_font("Helvetica", "", 11)
+        pdf.cell(0, 6, f"Document: {document['name']}", ln=True)
+        pdf.cell(0, 6, f"Type: {document['type']}", ln=True)
+        pdf.ln(10)
         
-        ai_style = ParagraphStyle(
-            'AIMessage',
-            parent=styles['Normal'],
-            fontSize=11,
-            leftIndent=20,
-            spaceAfter=12
-        )
-        
-        story = []
-        
-        story.append(Paragraph(f"Conversation: {document['name']}", title_style))
-        story.append(Paragraph(f"<b>Document:</b> {document['name']}", styles['Normal']))
-        story.append(Paragraph(f"<b>Type:</b> {document['type']}", styles['Normal']))
-        story.append(Spacer(1, 0.5*inch))
-        
+        # Messages
         for msg in messages:
             if msg["role"] == "user":
-                story.append(Paragraph("<b>You:</b>", user_style))
-                story.append(Paragraph(msg["content"].replace('\n', '<br/>'), user_style))
+                pdf.set_font("Helvetica", "B", 11)
+                pdf.set_text_color(37, 99, 235)  # Blue color for user
+                pdf.cell(0, 6, "You:", ln=True)
+                pdf.set_font("Helvetica", "", 11)
+                pdf.multi_cell(0, 6, msg["content"])
             else:
-                story.append(Paragraph("<b>AI:</b>", ai_style))
-                story.append(Paragraph(msg["content"].replace('\n', '<br/>'), ai_style))
-            story.append(Spacer(1, 0.3*inch))
+                pdf.set_font("Helvetica", "B", 11)
+                pdf.set_text_color(0, 0, 0)  # Black color for AI
+                pdf.cell(0, 6, "AI:", ln=True)
+                pdf.set_font("Helvetica", "", 11)
+                pdf.multi_cell(0, 6, msg["content"])
+            pdf.ln(5)
         
-        doc.build(story)
-        
-        pdf_data = buffer.getvalue()
-        buffer.close()
+        # Get PDF data
+        pdf_data = pdf.output()
         
         return Response(
             content=pdf_data,

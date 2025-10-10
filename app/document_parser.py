@@ -1,27 +1,17 @@
-from PyPDF2 import PdfReader
+import pymupdf
 import openpyxl
 import csv
 from bs4 import BeautifulSoup
-import pytesseract
-from PIL import Image
 import io
 
-async def extract_text_from_image(buffer: bytes) -> str:
-    """Extract text from image using OCR"""
-    try:
-        image = Image.open(io.BytesIO(buffer))
-        text = pytesseract.image_to_string(image)
-        return text.strip()
-    except Exception as e:
-        raise Exception(f"Failed to extract text from image: {str(e)}")
-
 async def extract_text_from_pdf(buffer: bytes) -> str:
-    """Extract text from PDF file"""
+    """Extract text from PDF file using pymupdf"""
     try:
-        pdf_reader = PdfReader(io.BytesIO(buffer))
+        doc = pymupdf.open(stream=buffer, filetype="pdf")
         text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text() + "\n"
+        for page in doc:
+            text += page.get_text() + "\n"
+        doc.close()
         return text.strip()
     except Exception as e:
         raise Exception(f"Failed to extract text from PDF: {str(e)}")
@@ -120,6 +110,3 @@ CODE_EXTENSIONS = {
     "rb", "php", "swift", "kt", "r", "sql", "sh", "bash", "json", "xml",
     "yaml", "yml", "css", "scss", "sass", "less", "html", "htm"
 }
-
-# Supported image extensions for OCR
-IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "bmp", "tiff", "tif"}

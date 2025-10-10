@@ -4,8 +4,7 @@ DocuChat is an intelligent document chat application that enables users to uploa
 
 ## Features
 
-- **Multi-Format Support**: Upload and process PDF, TXT, CSV, Excel, MD, HTML, and image files (PNG, JPG, JPEG, GIF, BMP, TIFF)
-- **OCR Support**: Extract text from images using Tesseract OCR for document analysis
+- **Multi-Format Support**: Upload and process PDF, TXT, CSV, Excel, MD, HTML, RTF, and code files
 - **Export Capabilities**: Export documents and conversations to PDF, Markdown, or JSON formats
 - **Real-Time Streaming**: Get instant responses with streaming AI-generated answers
 - **Conversation History**: All conversations are saved and persisted across sessions
@@ -22,12 +21,11 @@ DocuChat is an intelligent document chat application that enables users to uploa
 - **PostgreSQL**: Relational database for data persistence
 - **Ollama**: Local language model inference
 - **Python Document Parsers**:
-  - PyPDF2 for PDF files
+  - pymupdf for PDF files
   - openpyxl for Excel files
   - Python built-in csv module for CSV files
   - beautifulsoup4 for HTML parsing
-  - pytesseract + Pillow for OCR image processing
-  - reportlab for PDF export generation
+  - fpdf2 for PDF export generation
 
 ### Frontend
 - **React 18**: Modern UI library for building user interfaces
@@ -78,11 +76,6 @@ Install Python dependencies:
 ```bash
 pip install -r requirements.txt
 ```
-
-**Note**: For OCR support, you'll also need to install Tesseract OCR:
-- **Ubuntu/Debian**: `sudo apt-get install tesseract-ocr`
-- **macOS**: `brew install tesseract`
-- **Windows**: Download from [GitHub](https://github.com/UB-Mannheim/tesseract/wiki)
 
 ### 3. Frontend Setup
 
@@ -198,7 +191,7 @@ docuchat/
 ### Documents
 - `GET /api/documents` - List all documents
 - `GET /api/documents/{document_id}` - Get a specific document
-- `POST /api/documents/upload` - Upload a document (supports images with OCR)
+- `POST /api/documents/upload` - Upload a document
 - `DELETE /api/documents/{document_id}` - Delete a document
 - `GET /api/documents/{document_id}/export/json` - Export document as JSON
 - `GET /api/documents/{document_id}/export/markdown` - Export document as Markdown
@@ -231,7 +224,7 @@ docuchat/
 - **Text**: `.txt`, `.md`
 - **Excel**: `.xlsx`, `.csv`
 - **HTML**: `.html`, `.htm`
-- **Images (OCR)**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.tiff`
+- **RTF**: `.rtf`
 - **Code files**: `.js`, `.py`, `.java`, `.c`, `.cpp`, and many more
 
 **Note**: DOCX support was removed to reduce dependencies and maintain a lighter application.
@@ -269,7 +262,6 @@ If port 5000 or 8000 is already in use:
 
 - Maximum file size is 10MB
 - Ensure the file format is supported
-- For images, ensure Tesseract OCR is installed on your system
 - Check that the document contains extractable text
 
 ## Contributing
