@@ -15,6 +15,13 @@ DocuChat is a simplified document viewer application that allows users to upload
 - **Disabled Auto-Summary:** Removed automatic summary generation to avoid model dependency issues
 - **Local Development Ready:** No Replit-specific dependencies, runs fully on local systems
 - **Core Features Working:** Document upload, PDF/TXT text extraction, and basic viewing functionality
+- **UI/UX Improvements (Latest):**
+  - Removed lucide-react icon library, replaced with pure CSS icons for better performance
+  - Fixed light mode sun icon rendering
+  - Streamlined upload flow - files auto-upload on selection (no intermediate confirmation)
+  - Implemented proper upload cancellation with AbortController to stop in-flight requests
+  - Enhanced UI design with gradient header, improved spacing, better shadows and visual hierarchy
+  - Improved message bubbles and overall aesthetic
 
 ## User Preferences
 I prefer simple language. I want iterative development. Ask before making major changes. I prefer detailed explanations. Do not make changes to the folder Z. Do not make changes to the file Y.
@@ -80,8 +87,8 @@ DocuChat employs a client-server architecture:
 
 ## Dependencies
 
-**Frontend (7 packages):**
-- React 18, Vite, Lucide React Icons
+**Frontend (6 packages):**
+- React 18, Vite (removed Lucide React Icons - using CSS icons instead)
 - Autoprefixer, PostCSS
 
 **Backend (6 Python packages):**
