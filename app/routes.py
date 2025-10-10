@@ -650,29 +650,34 @@ async def export_conversation_pdf(document_id: str):
         
         # Title
         pdf.set_font("Helvetica", "B", 20)
-        pdf.cell(0, 10, f"Conversation: {document['name']}", ln=True)
+        # Handle encoding for document name
+        safe_doc_name = document['name'].encode('latin-1', 'replace').decode('latin-1')
+        pdf.cell(0, 10, f"Conversation: {safe_doc_name}", ln=True)
         pdf.ln(5)
         
         # Document info
         pdf.set_font("Helvetica", "", 11)
-        pdf.cell(0, 6, f"Document: {document['name']}", ln=True)
+        pdf.cell(0, 6, f"Document: {safe_doc_name}", ln=True)
         pdf.cell(0, 6, f"Type: {document['type']}", ln=True)
         pdf.ln(10)
         
         # Messages
         for msg in messages:
+            # Handle encoding for message content
+            safe_content = msg["content"].encode('latin-1', 'replace').decode('latin-1')
+            
             if msg["role"] == "user":
                 pdf.set_font("Helvetica", "B", 11)
                 pdf.set_text_color(37, 99, 235)  # Blue color for user
                 pdf.cell(0, 6, "You:", ln=True)
                 pdf.set_font("Helvetica", "", 11)
-                pdf.multi_cell(0, 6, msg["content"])
+                pdf.multi_cell(0, 6, safe_content)
             else:
                 pdf.set_font("Helvetica", "B", 11)
                 pdf.set_text_color(0, 0, 0)  # Black color for AI
                 pdf.cell(0, 6, "AI:", ln=True)
                 pdf.set_font("Helvetica", "", 11)
-                pdf.multi_cell(0, 6, msg["content"])
+                pdf.multi_cell(0, 6, safe_content)
             pdf.ln(5)
         
         # Get PDF data
@@ -681,7 +686,7 @@ async def export_conversation_pdf(document_id: str):
         return Response(
             content=pdf_data,
             media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{document["name"]}_conversation.pdf"'}
+            headers={"Content-Disposition": f'attachment; filename="{safe_doc_name}_conversation.pdf"'}
         )
     except HTTPException:
         raise
@@ -701,6 +706,9 @@ async def download_document_summary_pdf(document_id: str):
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=15)
         
+        # Handle encoding for document name
+        safe_doc_name = document['name'].encode('latin-1', 'replace').decode('latin-1')
+        
         # Title
         pdf.set_font("Helvetica", "B", 20)
         pdf.cell(0, 10, f"Document Summary", ln=True)
@@ -708,7 +716,7 @@ async def download_document_summary_pdf(document_id: str):
         
         # Document info
         pdf.set_font("Helvetica", "", 11)
-        pdf.cell(0, 6, f"Document: {document['name']}", ln=True)
+        pdf.cell(0, 6, f"Document: {safe_doc_name}", ln=True)
         pdf.cell(0, 6, f"Type: {document['type']}", ln=True)
         pdf.cell(0, 6, f"Size: {document.get('size', 0) / 1024:.2f} KB", ln=True)
         pdf.ln(10)
@@ -723,7 +731,9 @@ async def download_document_summary_pdf(document_id: str):
         if not content or content.strip() == "":
             content = "No extractable text content found in this document."
         
-        pdf.multi_cell(0, 6, content)
+        # Handle encoding for content
+        safe_content = content.encode('latin-1', 'replace').decode('latin-1')
+        pdf.multi_cell(0, 6, safe_content)
         
         # Get PDF data
         pdf_data = bytes(pdf.output())
@@ -731,7 +741,7 @@ async def download_document_summary_pdf(document_id: str):
         return Response(
             content=pdf_data,
             media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{document["name"]}_summary.pdf"'}
+            headers={"Content-Disposition": f'attachment; filename="{safe_doc_name}_summary.pdf"'}
         )
     except HTTPException:
         raise
