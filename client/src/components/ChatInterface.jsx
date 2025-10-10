@@ -493,7 +493,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
       )}
 
       <div className="messages">
-        {showDocSummary && messages.length === 0 && (
+        {showDocSummary && (
           <div className="doc-summary-banner" style={{
             backgroundColor: '#f0f9ff',
             padding: '16px',
