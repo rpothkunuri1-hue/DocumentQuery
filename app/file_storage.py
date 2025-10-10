@@ -40,6 +40,7 @@ class FileStorage:
             "size": size,
             "content": content,
             "summary": None,
+            "summary_status": None,
             "brief_summary": None,
             "key_points": [],
             "tags": [],

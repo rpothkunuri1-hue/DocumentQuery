@@ -151,22 +151,18 @@ async def upload_document(file: UploadFile = File(...), model: Optional[str] = N
         else:
             raise HTTPException(status_code=400, detail="Unsupported file type. Only PDF and TXT files are supported.")
         
-        # Create document in file storage with summary_status
-        document_data = {
-            "name": file.filename,
-            "type": mimetype,
-            "size": file_size,
-            "content": content
-        }
+        # Create document in file storage
+        document = FileStorage.create_document(
+            name=file.filename,
+            type=mimetype,
+            size=file_size,
+            content=content
+        )
         
         # Mark summary as generating if model is provided
         if model and content and len(content.strip()) >= 50:
-            document_data["summary_status"] = "generating"
-        
-        document = FileStorage.create_document(**document_data)
-        
-        # Generate summary in background if model is provided
-        if model and content and len(content.strip()) >= 50:
+            document = FileStorage.update_document(document["id"], {"summary_status": "generating"})
+            # Generate summary in background
             import asyncio
             asyncio.create_task(generate_summary_background(document["id"], content, model))
         

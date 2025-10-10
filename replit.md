@@ -5,6 +5,9 @@ DocuChat is a simplified document viewer application that allows users to upload
 
 ## Recent Changes (October 10, 2025)
 - **Import Complete:** Successfully migrated project to Replit environment with all dependencies installed
+- **Fixed Upload Error (NEW):** Resolved "unexpected keyword argument" error in FileStorage
+  - Added summary_status field to default document structure
+  - Fixed upload flow to properly handle summary generation status
 - **Fixed Large File Upload Issue (NEW):** Resolved upload failures for files > 2MB
   - Implemented chunked file reading (1MB chunks) instead of reading entire file at once
   - Added proper 413 status code for files exceeding 10MB limit
