@@ -1721,29 +1721,19 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 8px;
-  height: 8px;
-  border: 2px solid currentColor;
+  width: 10px;
+  height: 10px;
+  background: currentColor;
   border-radius: 50%;
-}
-
-.icon-sun::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 20px;
-  height: 20px;
-  transform: translate(-50%, -50%);
-  background: 
-    linear-gradient(currentColor, currentColor) 50% 0/2px 4px no-repeat,
-    linear-gradient(currentColor, currentColor) 50% 100%/2px 4px no-repeat,
-    linear-gradient(currentColor, currentColor) 0 50%/4px 2px no-repeat,
-    linear-gradient(currentColor, currentColor) 100% 50%/4px 2px no-repeat,
-    linear-gradient(45deg, currentColor, currentColor) 15% 15%/2px 4px no-repeat,
-    linear-gradient(-45deg, currentColor, currentColor) 85% 15%/2px 4px no-repeat,
-    linear-gradient(45deg, currentColor, currentColor) 85% 85%/2px 4px no-repeat,
-    linear-gradient(-45deg, currentColor, currentColor) 15% 85%/2px 4px no-repeat;
+  box-shadow: 
+    0 -14px 0 -4px currentColor,
+    0 14px 0 -4px currentColor,
+    14px 0 0 -4px currentColor,
+    -14px 0 0 -4px currentColor,
+    10px -10px 0 -4px currentColor,
+    10px 10px 0 -4px currentColor,
+    -10px -10px 0 -4px currentColor,
+    -10px 10px 0 -4px currentColor;
 }
 
 .icon-moon {
@@ -1758,11 +1748,11 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
-  width: 14px;
-  height: 14px;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  box-shadow: 4px 0 0 0 currentColor;
+  box-shadow: 5px 0 0 0 currentColor;
 }
 
 .icon-x,
