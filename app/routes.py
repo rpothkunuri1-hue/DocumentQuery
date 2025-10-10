@@ -558,9 +558,101 @@ async def multi_chat(request: MultiChatRequest):
 
 # ==================== EXPORT ENDPOINTS ====================
 
+class ExportRequest(BaseModel):
+    format: str
+
+@router.post("/api/documents/{document_id}/export")
+async def export_unified(document_id: str, request: ExportRequest):
+    """Unified export endpoint for document summary and conversations"""
+    try:
+        document = FileStorage.get_document(document_id)
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found. The requested document may have been deleted.")
+        
+        conversation = FileStorage.get_conversation_by_document(document_id)
+        messages = FileStorage.get_messages(conversation["id"]) if conversation else []
+        
+        format_type = request.format.lower()
+        
+        if format_type == "json":
+            return await export_unified_json(document, conversation, messages)
+        elif format_type == "markdown" or format_type == "md":
+            return await export_unified_markdown(document, conversation, messages)
+        elif format_type == "txt":
+            return await export_unified_txt(document, conversation, messages)
+        elif format_type == "pdf":
+            return await export_unified_pdf(document, conversation, messages)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported format: {format_type}. Supported formats are: pdf, txt, md, json")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+async def export_unified_json(document: dict, conversation: dict | None, messages: list):
+    """Export as JSON with summary and conversations"""
+    export_data = {
+        "document": {
+            "id": document["id"],
+            "name": document["name"],
+            "type": document["type"],
+            "size": document.get("size", 0),
+            "uploaded_at": document.get("uploaded_at")
+        },
+        "summary": {
+            "content": document.get("content", "No content available"),
+            "word_count": len(document.get("content", "").split()) if document.get("content") else 0
+        },
+        "conversation": {
+            "id": conversation["id"] if conversation else None,
+            "created_at": conversation.get("created_at") if conversation else None,
+            "message_count": len(messages)
+        },
+        "messages": messages
+    }
+    
+    json_str = json.dumps(export_data, indent=2)
+    safe_filename = document['name'].replace(' ', '_').replace('/', '_')
+    return Response(
+        content=json_str,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename}_export.json"'}
+    )
+
+async def export_unified_txt(document: dict, conversation: dict | None, messages: list):
+    """Export as TXT with summary and conversations"""
+    content = f"Document: {document['name']}\n"
+    content += f"Type: {document['type']}\n"
+    content += f"Size: {document.get('size', 0) / 1024:.2f} KB\n"
+    content += f"Uploaded: {document.get('uploaded_at', 'Unknown')}\n"
+    content += "=" * 80 + "\n\n"
+    
+    content += "DOCUMENT SUMMARY\n"
+    content += "=" * 80 + "\n"
+    doc_content = document.get('content', 'No content available')
+    if not doc_content or doc_content.strip() == "":
+        doc_content = "No extractable text content found in this document."
+    content += doc_content + "\n\n"
+    
+    if messages and len(messages) > 0:
+        content += "=" * 80 + "\n"
+        content += "CONVERSATION HISTORY\n"
+        content += "=" * 80 + "\n\n"
+        
+        for msg in messages:
+            role_label = "YOU" if msg["role"] == "user" else "AI"
+            content += f"{role_label}:\n{msg['content']}\n\n"
+    
+    safe_filename = document['name'].replace(' ', '_').replace('/', '_')
+    return Response(
+        content=content,
+        media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename}_export.txt"'}
+    )
+
 @router.get("/api/documents/{document_id}/export/json")
 async def export_conversation_json(document_id: str):
-    """Export conversation as JSON"""
+    """Export conversation as JSON (deprecated - use unified export)"""
     try:
         document = FileStorage.get_document(document_id)
         if not document:
@@ -596,9 +688,38 @@ async def export_conversation_json(document_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to export as JSON: {str(e)}")
 
+async def export_unified_markdown(document: dict, conversation: dict | None, messages: list):
+    """Export as Markdown with summary and conversations"""
+    markdown_content = f"# {document['name']}\n\n"
+    markdown_content += f"**Type:** {document['type']}  \n"
+    markdown_content += f"**Size:** {document.get('size', 0) / 1024:.2f} KB  \n"
+    markdown_content += f"**Uploaded:** {document.get('uploaded_at', 'Unknown')}  \n\n"
+    markdown_content += "---\n\n"
+    
+    markdown_content += "## Document Summary\n\n"
+    doc_content = document.get('content', 'No content available')
+    if not doc_content or doc_content.strip() == "":
+        doc_content = "No extractable text content found in this document."
+    markdown_content += doc_content + "\n\n"
+    
+    if messages and len(messages) > 0:
+        markdown_content += "---\n\n"
+        markdown_content += "## Conversation History\n\n"
+        
+        for msg in messages:
+            role_label = "**You:**" if msg["role"] == "user" else "**AI:**"
+            markdown_content += f"{role_label}\n\n{msg['content']}\n\n"
+    
+    safe_filename = document['name'].replace(' ', '_').replace('/', '_')
+    return Response(
+        content=markdown_content,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename}_export.md"'}
+    )
+
 @router.get("/api/documents/{document_id}/export/markdown")
 async def export_conversation_markdown(document_id: str):
-    """Export conversation as Markdown"""
+    """Export conversation as Markdown (deprecated - use unified export)"""
     try:
         document = FileStorage.get_document(document_id)
         if not document:
@@ -629,9 +750,74 @@ async def export_conversation_markdown(document_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to export as Markdown: {str(e)}")
 
+async def export_unified_pdf(document: dict, conversation: dict | None, messages: list):
+    """Export as PDF with summary and conversations"""
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    
+    safe_doc_name = document['name'].encode('latin-1', 'replace').decode('latin-1')
+    
+    # Title
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.cell(0, 10, safe_doc_name, ln=True)
+    pdf.ln(5)
+    
+    # Document info
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(0, 5, f"Type: {document['type']}", ln=True)
+    pdf.cell(0, 5, f"Size: {document.get('size', 0) / 1024:.2f} KB", ln=True)
+    pdf.cell(0, 5, f"Uploaded: {document.get('uploaded_at', 'Unknown')}", ln=True)
+    pdf.ln(10)
+    
+    # Document Summary Section
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 8, "Document Summary", ln=True)
+    pdf.ln(3)
+    
+    pdf.set_font("Helvetica", "", 10)
+    content = document.get('content', 'No content available')
+    if not content or content.strip() == "":
+        content = "No extractable text content found in this document."
+    safe_content = content.encode('latin-1', 'replace').decode('latin-1')
+    pdf.multi_cell(0, 5, safe_content)
+    pdf.ln(10)
+    
+    # Conversation History Section
+    if messages and len(messages) > 0:
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.cell(0, 8, "Conversation History", ln=True)
+        pdf.ln(5)
+        
+        for msg in messages:
+            safe_msg_content = msg["content"].encode('latin-1', 'replace').decode('latin-1')
+            
+            if msg["role"] == "user":
+                pdf.set_font("Helvetica", "B", 11)
+                pdf.set_text_color(37, 99, 235)
+                pdf.cell(0, 6, "You:", ln=True)
+                pdf.set_font("Helvetica", "", 10)
+                pdf.multi_cell(0, 5, safe_msg_content)
+            else:
+                pdf.set_font("Helvetica", "B", 11)
+                pdf.set_text_color(0, 0, 0)
+                pdf.cell(0, 6, "AI:", ln=True)
+                pdf.set_font("Helvetica", "", 10)
+                pdf.multi_cell(0, 5, safe_msg_content)
+            pdf.ln(5)
+    
+    pdf_data = bytes(pdf.output())
+    safe_filename = document['name'].replace(' ', '_').replace('/', '_')
+    
+    return Response(
+        content=pdf_data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename}_export.pdf"'}
+    )
+
 @router.get("/api/documents/{document_id}/export/pdf")
 async def export_conversation_pdf(document_id: str):
-    """Export conversation as PDF"""
+    """Export conversation as PDF (deprecated - use unified export)"""
     try:
         document = FileStorage.get_document(document_id)
         if not document:

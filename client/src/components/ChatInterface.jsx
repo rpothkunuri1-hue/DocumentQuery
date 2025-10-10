@@ -10,11 +10,17 @@ export default function ChatInterface({ document: currentDocument, selectedModel
   const [editContent, setEditContent] = useState('');
   const [messageRatings, setMessageRatings] = useState({});
   const [copiedMessageId, setCopiedMessageId] = useState(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState('pdf');
+  const [showDocSummary, setShowDocSummary] = useState(false);
+  const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
 
   useEffect(() => {
     loadConversation();
+    setShowDocSummary(true);
+    setError(null);
   }, [currentDocument.id]);
 
   useEffect(() => {
@@ -23,15 +29,29 @@ export default function ChatInterface({ document: currentDocument, selectedModel
 
   const loadConversation = async () => {
     try {
+      setError(null);
       const convResponse = await fetch(`/api/conversations/${currentDocument.id}`);
+      
+      if (!convResponse.ok) {
+        const errorData = await convResponse.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to load conversation (${convResponse.status})`);
+      }
+      
       const conversation = await convResponse.json();
       setConversationId(conversation.id);
 
       const messagesResponse = await fetch(`/api/messages/${conversation.id}`);
+      
+      if (!messagesResponse.ok) {
+        const errorData = await messagesResponse.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to load messages (${messagesResponse.status})`);
+      }
+      
       const messagesData = await messagesResponse.json();
       setMessages(messagesData);
     } catch (error) {
       console.error('Failed to load conversation:', error);
+      setError(`Unable to load conversation: ${error.message}`);
     }
   };
 
@@ -77,14 +97,18 @@ export default function ChatInterface({ document: currentDocument, selectedModel
         signal: abortControllerRef.current.signal,
       });
 
-      if (!response.ok) throw new Error('Failed to send message');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to send message (${response.status})`);
+      }
 
+      setShowDocSummary(false);
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let assistantMessage = '';
       let messageId = null;
 
-      if (!reader) throw new Error('No reader');
+      if (!reader) throw new Error('Unable to read response stream');
 
       try {
         while (true) {
@@ -144,6 +168,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
         console.log('Generation stopped by user');
       } else {
         console.error('Failed to send message:', error);
+        setError(`Message failed: ${error.message}`);
       }
       setIsStreaming(false);
       setProgressMetrics(null);
@@ -227,43 +252,38 @@ export default function ChatInterface({ document: currentDocument, selectedModel
     </div>
   );
 
-  const handleExport = async (format) => {
-    try {
-      const response = await fetch(`/api/documents/${currentDocument.id}/export/${format}`);
-      if (!response.ok) throw new Error(`Failed to export as ${format}`);
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${currentDocument.name}_export.${format === 'markdown' ? 'md' : format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error(`Export failed:`, error);
-      alert(`Failed to export document as ${format}`);
-    }
+  const handleExportClick = () => {
+    setShowExportModal(true);
   };
 
-  const handleDownloadSummary = async () => {
+  const handleExportConfirm = async () => {
     try {
-      const response = await fetch(`/api/documents/${currentDocument.id}/summary/pdf`);
-      if (!response.ok) throw new Error('Failed to download summary');
+      const response = await fetch(`/api/documents/${currentDocument.id}/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ format: exportFormat })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Export failed (${response.status})`);
+      }
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${currentDocument.name}_summary.pdf`;
+      const extension = exportFormat === 'markdown' ? 'md' : exportFormat;
+      a.download = `${currentDocument.name}_export.${extension}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      setShowExportModal(false);
     } catch (error) {
-      console.error('Download summary failed:', error);
-      alert('Failed to download document summary');
+      console.error(`Export failed:`, error);
+      setError(`Export failed: ${error.message}`);
+      setShowExportModal(false);
     }
   };
 
@@ -276,52 +296,164 @@ export default function ChatInterface({ document: currentDocument, selectedModel
         </div>
         <div className="export-actions">
           <button
-            onClick={handleDownloadSummary}
+            onClick={handleExportClick}
             className="btn-export"
-            title="Download Document Summary"
-            data-testid="button-download-summary"
+            title="Export Document and Conversation"
+            data-testid="button-export"
             style={{ backgroundColor: '#10b981', color: 'white' }}
           >
             <span className="icon icon-download"></span>
-            <span>Summary</span>
-          </button>
-          <button
-            onClick={() => handleExport('pdf')}
-            className="btn-export"
-            title="Export Conversation as PDF"
-            data-testid="button-export-pdf"
-          >
-            <span className="icon icon-download"></span>
-            <span>PDF</span>
-          </button>
-          <button
-            onClick={() => handleExport('markdown')}
-            className="btn-export"
-            title="Export Conversation as Markdown"
-            data-testid="button-export-md"
-          >
-            <span className="icon icon-file"></span>
-            <span>MD</span>
-          </button>
-          <button
-            onClick={() => handleExport('json')}
-            className="btn-export"
-            title="Export Conversation as JSON"
-            data-testid="button-export-json"
-          >
-            <span className="icon icon-code"></span>
-            <span>JSON</span>
+            <span>Export</span>
           </button>
         </div>
       </div>
 
+      {error && (
+        <div className="error-banner" style={{ 
+          backgroundColor: '#fee', 
+          color: '#c00', 
+          padding: '12px 16px', 
+          margin: '16px', 
+          borderRadius: '8px',
+          borderLeft: '4px solid #c00'
+        }}>
+          <strong>Error:</strong> {error}
+          <button 
+            onClick={() => setError(null)}
+            style={{ 
+              float: 'right', 
+              background: 'none', 
+              border: 'none', 
+              color: '#c00', 
+              cursor: 'pointer',
+              fontSize: '18px',
+              fontWeight: 'bold'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {showExportModal && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="modal-content" style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '12px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Export Document</h3>
+            <p style={{ marginBottom: '16px', color: '#666' }}>
+              Choose a format to export the document summary and conversation history.
+            </p>
+            
+            <div style={{ marginBottom: '20px' }}>
+              {['pdf', 'txt', 'md', 'json'].map(format => (
+                <label 
+                  key={format}
+                  style={{
+                    display: 'block',
+                    padding: '10px',
+                    marginBottom: '8px',
+                    border: '2px solid',
+                    borderColor: exportFormat === format ? '#10b981' : '#ddd',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    backgroundColor: exportFormat === format ? '#f0fdf4' : 'white',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="exportFormat"
+                    value={format}
+                    checked={exportFormat === format}
+                    onChange={(e) => setExportFormat(e.target.value)}
+                    style={{ marginRight: '8px' }}
+                  />
+                  <strong>{format.toUpperCase()}</strong>
+                  <span style={{ marginLeft: '8px', color: '#666', fontSize: '14px' }}>
+                    {format === 'pdf' && '- Portable Document Format'}
+                    {format === 'txt' && '- Plain Text File'}
+                    {format === 'md' && '- Markdown File'}
+                    {format === 'json' && '- JSON Data Format'}
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowExportModal(false)}
+                style={{
+                  padding: '10px 20px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExportConfirm}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="messages">
-        {messages.length === 0 ? (
+        {showDocSummary && messages.length === 0 && (
+          <div className="doc-summary-banner" style={{
+            backgroundColor: '#f0f9ff',
+            padding: '16px',
+            margin: '16px',
+            borderRadius: '8px',
+            borderLeft: '4px solid #3b82f6'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '8px', color: '#1e40af' }}>Document Loaded</h3>
+            <p style={{ marginBottom: '12px', color: '#1e40af' }}>
+              This document contains <strong>{currentDocument.content ? currentDocument.content.split(' ').length : 0} words</strong>. 
+              You can now ask questions about the content within this document.
+            </p>
+            <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>
+              💡 <em>Ask me anything about "{currentDocument.name}"</em>
+            </p>
+          </div>
+        )}
+        
+        {messages.length === 0 && !showDocSummary ? (
           <div className="empty-chat">
             <h3>Start a conversation</h3>
             <p>Ask any question about "{currentDocument.name}"</p>
           </div>
-        ) : (
+        ) : messages.length > 0 ? (
           messages.map((message) => (
             <div key={message.id} className={`message ${message.role}`} data-testid={`message-${message.role}-${message.id}`}>
               <div className="message-avatar" data-testid={`avatar-${message.role}`}>
@@ -436,7 +568,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
               </div>
             </div>
           ))
-        )}
+        ) : null}
         <div ref={messagesEndRef} />
       </div>
 
