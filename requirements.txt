@@ -2,7 +2,5 @@ fastapi
 uvicorn
 python-multipart
 pymupdf
-openpyxl
-beautifulsoup4
 httpx
 fpdf2

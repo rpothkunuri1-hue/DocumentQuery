@@ -1,12 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse, Response
 from app.file_storage import FileStorage
-from app.document_parser import (
-    extract_text_from_pdf, extract_text_from_txt,
-    extract_text_from_csv, extract_text_from_excel, extract_text_from_markdown,
-    extract_text_from_html, extract_text_from_rtf, extract_text_from_code,
-    CODE_EXTENSIONS
-)
+from app.document_parser import extract_text_from_pdf, extract_text_from_txt
 from typing import List, Optional, AsyncIterator
 from pydantic import BaseModel
 import os
@@ -100,27 +95,15 @@ async def upload_document(file: UploadFile = File(...)):
         extension = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
         mimetype = file.content_type or ''
         
-        # Extract text based on file type
+        # Extract text based on file type (PDF and TXT only)
         content = ""
         
-        if mimetype == "application/pdf":
+        if mimetype == "application/pdf" or extension == "pdf":
             content = await extract_text_from_pdf(content_bytes)
         elif mimetype == "text/plain" or extension == "txt":
             content = await extract_text_from_txt(content_bytes)
-        elif mimetype == "text/csv" or extension == "csv":
-            content = await extract_text_from_csv(content_bytes)
-        elif mimetype in ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"] or extension in ["xlsx", "xls"]:
-            content = await extract_text_from_excel(content_bytes)
-        elif mimetype == "text/markdown" or extension == "md":
-            content = await extract_text_from_markdown(content_bytes)
-        elif mimetype == "text/html" or extension in ["html", "htm"]:
-            content = await extract_text_from_html(content_bytes)
-        elif mimetype == "application/rtf" or extension == "rtf":
-            content = await extract_text_from_rtf(content_bytes)
-        elif extension in CODE_EXTENSIONS:
-            content = await extract_text_from_code(content_bytes, extension)
         else:
-            raise HTTPException(status_code=400, detail="Unsupported file type")
+            raise HTTPException(status_code=400, detail="Unsupported file type. Only PDF and TXT files are supported.")
         
         # Create document in file storage
         document = FileStorage.create_document(
