@@ -1,35 +1,73 @@
-# DocuChat - Document Q&A Application
+# DocuChat - Basic Document Viewer
 
 ## Overview
-DocuChat is a streamlined document Q&A application enabling intelligent conversations with uploaded documents using local Ollama models. It offers a ChatGPT-inspired interface, featuring streaming responses, conversation memory, OCR support for images, and comprehensive export capabilities. The project aims to provide an efficient and intuitive tool for users to interact with their documents.
+DocuChat is a simplified document viewer application that allows users to upload and view PDF and TXT files. The project uses a modern tech stack with React for the frontend and FastAPI for the backend.
+
+## Recent Changes (October 10, 2025)
+- **Simplified to Basic App:** Removed support for multiple file formats. Now only supports PDF and TXT files.
+- **Removed Dependencies:** Cleaned up unnecessary libraries (openpyxl, beautifulsoup4, etc.)
+- **Core Features Working:** Document upload, PDF/TXT text extraction, and basic viewing functionality.
 
 ## User Preferences
 I prefer simple language. I want iterative development. Ask before making major changes. I prefer detailed explanations. Do not make changes to the folder Z. Do not make changes to the file Y.
 
 ## System Architecture
-DocuChat employs a client-server architecture. The frontend is built with React 18 and Vite, utilizing Lucide React Icons for a professional UI/UX, and features a comprehensive dark mode. The backend is powered by FastAPI (Python) with Uvicorn, using SQLAlchemy for database interactions (currently in-memory, designed for PostgreSQL). Ollama is integrated for local AI model inference.
+DocuChat employs a client-server architecture:
+- **Frontend:** Built with React 18 and Vite, utilizing Lucide React Icons for UI
+- **Backend:** Powered by FastAPI (Python) with Uvicorn
+- **File Storage:** In-memory storage using FileStorage class
 
-**UI/UX Decisions:**
-- **Design System:** Uses a custom color palette (Primary: #2563EB, Secondary: #64748B, Background: #F8FAFC, Surface: #FFFFFF, Text: #1E293B, Accent: #10B981 in light mode).
-- **Responsive Design:** Mobile-friendly with collapsible sidebar and touch-friendly gestures (e.g., swipe-to-delete).
-- **Interactive Elements:** Features like multi-document selection badges, pulsing waiting animations, copy-to-clipboard, regenerate response, edit messages, rate responses, and delete messages.
-- **Export Options:** PDF export with professional formatting, Markdown export for conversation history, and JSON export for programmatic access.
+**Current Features:**
+- **Document Upload:** Supports PDF and TXT files (10MB limit)
+- **Text Extraction:** 
+  - PDF: Uses PyMuPDF (pymupdf) for text extraction
+  - TXT: Direct text file reading with UTF-8 encoding
+- **API Endpoints:**
+  - `GET /api/documents` - List all documents
+  - `GET /api/documents/{id}` - Get single document
+  - `POST /api/documents/upload` - Upload PDF or TXT file
+  - `DELETE /api/documents/{id}` - Delete document
+  - `GET /api/models` - Get available Ollama models (optional AI feature)
 
-**Technical Implementations & Feature Specifications:**
-- **Document Management:** Supports over 30 file formats including PDFs, TXT, spreadsheets (Excel), web formats (HTML, MD), and various source code files. OCR is implemented for image file types (PNG, JPG, JPEG, GIF, BMP, TIFF) using `pytesseract`. Note: DOCX support removed to reduce dependencies.
-- **Chat Interface:** Provides streaming AI responses, dynamic Ollama model selection, and full conversation memory.
-- **Data Handling:** Advanced document indexing with configurable chunking system for improved search.
-- **Error Handling:** Graceful handling of Ollama connection errors.
-- **Project Structure:**
-    - `client/`: Frontend React application (`components/`, `lib/`, `pages/`, `styles.css`, `App.jsx`).
-    - `app/`: Backend FastAPI application (`routes.py`, `document_parser.py`, `database.py`, `models.py`, `init_db.py`).
-    - `main.py`: FastAPI entry point.
+**Project Structure:**
+- `client/`: Frontend React application
+  - `src/components/`: React components (ChatInterface, DocumentList, UploadModal)
+  - `src/App.jsx`: Main application component
+  - `src/main.jsx`: Entry point
+- `app/`: Backend FastAPI application
+  - `routes.py`: API endpoints
+  - `document_parser.py`: PDF and TXT text extraction
+  - `file_storage.py`: In-memory document storage
+- `main.py`: FastAPI server entry point
+- `dist/`: Built frontend files (served by backend)
 
-**System Design Choices:**
-- **Database Schema (planned):** Includes tables for `collections`, `collection_documents`, `document_comparisons`, `model_comparisons`, `jobs`, `document_chunks`, `document_versions`, and `cache`.
-- **API Endpoints (planned):** Comprehensive RESTful API for collections, bulk upload, document comparison, model comparison, and enhanced document operations.
-- **Frontend Routing:** Uses Wouter for client-side routing (`/`, `/collections`, `/comparisons`, `/jobs`).
+## Current Status
+✅ **Working:**
+- Backend server running on port 5000
+- Frontend built and served successfully
+- PDF and TXT file upload and processing
+- Document listing and deletion
 
-## External Dependencies
-- **Frontend:** React 18, Vite, Wouter (routing), Lucide React Icons, TanStack Query.
-- **Backend:** FastAPI, Uvicorn, SQLAlchemy, PyPDF2, python-docx, openpyxl, pandas, BeautifulSoup4, pytesseract, Pillow, reportlab, Ollama (local model integration).
+⚠️ **Optional (Not Required for Basic App):**
+- Ollama AI integration (for chat features) - currently not configured
+- Advanced features like document comparison, collections, etc.
+
+## Dependencies
+**Frontend:**
+- React 18, Vite, Lucide React Icons
+
+**Backend (Python):**
+- fastapi - Web framework
+- uvicorn - ASGI server
+- python-multipart - File upload handling
+- pymupdf - PDF text extraction
+- httpx - HTTP client (for optional Ollama integration)
+- fpdf2 - PDF generation (for exports)
+
+## Next Steps
+The basic app is ready! You can now:
+1. Upload PDF and TXT files
+2. View extracted text from documents
+3. Manage your documents (list, delete)
+
+If you need AI chat features, you'll need to configure Ollama service.
