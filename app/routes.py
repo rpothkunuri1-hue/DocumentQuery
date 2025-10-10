@@ -676,7 +676,7 @@ async def export_conversation_pdf(document_id: str):
             pdf.ln(5)
         
         # Get PDF data
-        pdf_data = pdf.output()
+        pdf_data = bytes(pdf.output())
         
         return Response(
             content=pdf_data,
@@ -687,3 +687,53 @@ async def export_conversation_pdf(document_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to export as PDF: {str(e)}")
+
+@router.get("/api/documents/{document_id}/summary/pdf")
+async def download_document_summary_pdf(document_id: str):
+    """Download document summary (extracted content) as PDF"""
+    try:
+        document = FileStorage.get_document(document_id)
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Create PDF using fpdf2
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        
+        # Title
+        pdf.set_font("Helvetica", "B", 20)
+        pdf.cell(0, 10, f"Document Summary", ln=True)
+        pdf.ln(5)
+        
+        # Document info
+        pdf.set_font("Helvetica", "", 11)
+        pdf.cell(0, 6, f"Document: {document['name']}", ln=True)
+        pdf.cell(0, 6, f"Type: {document['type']}", ln=True)
+        pdf.cell(0, 6, f"Size: {document.get('size', 0) / 1024:.2f} KB", ln=True)
+        pdf.ln(10)
+        
+        # Document content
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.cell(0, 8, "Extracted Content:", ln=True)
+        pdf.ln(3)
+        
+        pdf.set_font("Helvetica", "", 11)
+        content = document.get('content', 'No content available')
+        if not content or content.strip() == "":
+            content = "No extractable text content found in this document."
+        
+        pdf.multi_cell(0, 6, content)
+        
+        # Get PDF data
+        pdf_data = bytes(pdf.output())
+        
+        return Response(
+            content=pdf_data,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{document["name"]}_summary.pdf"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate document summary PDF: {str(e)}")

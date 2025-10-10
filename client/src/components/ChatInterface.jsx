@@ -248,6 +248,26 @@ export default function ChatInterface({ document: currentDocument, selectedModel
     }
   };
 
+  const handleDownloadSummary = async () => {
+    try {
+      const response = await fetch(`/api/documents/${currentDocument.id}/summary/pdf`);
+      if (!response.ok) throw new Error('Failed to download summary');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentDocument.name}_summary.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Download summary failed:', error);
+      alert('Failed to download document summary');
+    }
+  };
+
   return (
     <div className="chat-view">
       <div className="chat-header">
@@ -257,9 +277,19 @@ export default function ChatInterface({ document: currentDocument, selectedModel
         </div>
         <div className="export-actions">
           <button
+            onClick={handleDownloadSummary}
+            className="btn-export"
+            title="Download Document Summary"
+            data-testid="button-download-summary"
+            style={{ backgroundColor: '#10b981', color: 'white' }}
+          >
+            <Download className="w-4 h-4" />
+            <span>Summary</span>
+          </button>
+          <button
             onClick={() => handleExport('pdf')}
             className="btn-export"
-            title="Export as PDF"
+            title="Export Conversation as PDF"
             data-testid="button-export-pdf"
           >
             <Download className="w-4 h-4" />
@@ -268,7 +298,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
           <button
             onClick={() => handleExport('markdown')}
             className="btn-export"
-            title="Export as Markdown"
+            title="Export Conversation as Markdown"
             data-testid="button-export-md"
           >
             <FileText className="w-4 h-4" />
@@ -277,7 +307,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
           <button
             onClick={() => handleExport('json')}
             className="btn-export"
-            title="Export as JSON"
+            title="Export Conversation as JSON"
             data-testid="button-export-json"
           >
             <FileJson className="w-4 h-4" />
