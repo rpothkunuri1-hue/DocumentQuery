@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export default function ChatInterface({ document: currentDocument, selectedModel }) {
+export default function ChatInterface({ document: currentDocument, selectedModel, onDocumentUpdate }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -60,6 +60,11 @@ export default function ChatInterface({ document: currentDocument, selectedModel
         const response = await fetch(`/api/documents/${currentDocument.id}`);
         if (response.ok) {
           const doc = await response.json();
+          // Update parent component with the latest document data
+          if (onDocumentUpdate) {
+            onDocumentUpdate(doc);
+          }
+          // Stop polling when status changes from 'generating'
           if (doc.summary_status !== 'generating') {
             setSummaryStatus(doc.summary_status);
             clearInterval(summaryPollInterval.current);
