@@ -4,9 +4,3 @@ python-multipart
 pymupdf
 httpx
 fpdf2
-fastapi
-fpdf2
-httpx
-pymupdf
-python-multipart
-uvicorn
