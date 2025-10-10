@@ -1,19 +1,18 @@
 # DocuChat - Local Development Setup
 
-A document Q&A application with AI-powered conversations using Ollama models.
+A simplified document viewer with optional AI chat features for PDF and TXT files.
 
 ## 🚀 Features
 
-- Upload and chat with documents (PDF, DOCX, TXT, CSV, Excel, Markdown, HTML, source code, images with OCR)
-- Real-time streaming AI responses
-- Conversation memory and history
+- Upload and view PDF and TXT documents
+- Extract text from documents automatically
+- Optional AI chat with documents using Ollama (if configured)
 - Export conversations to PDF, Markdown, or JSON
 - Dark mode support
-- Mobile-friendly with swipe gestures
 
 ## 📋 Prerequisites
 
-Before you begin, ensure you have the following installed on your machine:
+Before you begin, ensure you have the following installed:
 
 ### Required Software
 
@@ -28,19 +27,9 @@ Before you begin, ensure you have the following installed on your machine:
    npm --version
    ```
 
-3. **PostgreSQL** (Optional - uses in-memory SQLite by default)
-   ```bash
-   psql --version
-   ```
-
-4. **Tesseract OCR** (for image text extraction)
-   - **macOS**: `brew install tesseract`
-   - **Ubuntu/Debian**: `sudo apt-get install tesseract-ocr`
-   - **Windows**: Download from [GitHub](https://github.com/UB-Mannheim/tesseract/wiki)
-
-5. **Ollama** (for AI models)
+3. **Ollama** (Optional - for AI chat features)
    - Download from [ollama.ai](https://ollama.ai)
-   - Pull a model: `ollama pull llama2`
+   - Pull a model: `ollama pull llama3.2` (or any other model)
 
 ## 🛠️ Installation
 
@@ -51,9 +40,18 @@ git clone <your-repo-url>
 cd docuchat
 ```
 
-### 2. Backend Setup (Python)
+### 2. Run Setup Script (macOS/Linux)
 
-#### Create Virtual Environment
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+Or install manually:
+
+### 3. Manual Setup
+
+#### Backend (Python)
 
 ```bash
 # Create virtual environment
@@ -64,84 +62,39 @@ python -m venv venv
 source venv/bin/activate
 # On Windows:
 venv\Scripts\activate
-```
 
-#### Install Python Dependencies
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-**Note**: If you get a `pg_config` error with `psycopg2-binary`, you can either:
-- Install PostgreSQL development files: `sudo apt-get install libpq-dev` (Ubuntu/Debian)
-- Or use SQLite instead (modify `app/database.py`)
-
-### 3. Frontend Setup (Node.js)
+#### Frontend (Node.js)
 
 ```bash
-# Install Node.js dependencies
 npm install
-```
-
-### 4. Environment Configuration
-
-Create a `.env` file in the root directory:
-
-```bash
-# Ollama Configuration
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama2
-
-# Server Configuration
-PORT=8000
-
-# Database (Optional - defaults to SQLite)
-# DATABASE_URL=postgresql://user:password@localhost:5432/docuchat
 ```
 
 ## 🚀 Running the Application
 
-### Development Mode
-
-**✅ Cross-Platform Compatible** - Works on Windows, macOS, and Linux!
-
-You have two options to run the application:
-
-#### Option 1: Run Both Servers Together (Recommended)
-
-```bash
-# Activate virtual environment first
-# macOS/Linux:
-source venv/bin/activate
-# Windows:
-venv\Scripts\activate
-
-# Start both servers
-npm run dev
-```
-
-This uses `concurrently` to start both:
-- Backend (FastAPI) on `http://localhost:8000`
-- Frontend (Vite) on `http://localhost:5000`
-
-Both servers will run together and can be stopped with `Ctrl+C`.
-
-#### Option 2: Run Servers Separately
+### Development Mode (Two Terminals)
 
 **Terminal 1 - Backend:**
 ```bash
-# macOS/Linux:
-source venv/bin/activate
-# Windows:
-venv\Scripts\activate
+# Activate virtual environment first
+source venv/bin/activate  # macOS/Linux
+# OR
+venv\Scripts\activate     # Windows
 
+# Start backend on port 8000
 npm run dev:backend
 ```
 
 **Terminal 2 - Frontend:**
 ```bash
-npm run dev:frontend
+# Start frontend dev server on port 5000
+npm run dev
 ```
+
+Then open http://localhost:5000 in your browser.
 
 ### Production Build
 
@@ -149,11 +102,43 @@ npm run dev:frontend
 # Build frontend
 npm run build
 
-# Start production server
+# Start production server (serves both API and frontend on port 5000)
 npm start
 ```
 
-The production server serves both the API and the built frontend.
+## 🔧 Configuration
+
+### Ollama Setup (Optional - for AI chat)
+
+1. **Install Ollama** from [ollama.ai](https://ollama.ai)
+
+2. **Start Ollama service:**
+   ```bash
+   ollama serve
+   ```
+
+3. **Pull at least one model:**
+   ```bash
+   ollama pull llama3.2
+   # Or any other model:
+   # ollama pull mistral
+   # ollama pull phi
+   ```
+
+4. **Select model in the UI** - The app will automatically detect installed models in the dropdown
+
+⚠️ **Important**: You must select a model from the dropdown before using chat features. The app no longer uses a hardcoded default model.
+
+### Environment Variables (Optional)
+
+Create a `.env` file in the root directory:
+
+```bash
+# Ollama Configuration
+OLLAMA_BASE_URL=http://localhost:11434
+
+# No need to set OLLAMA_MODEL - select from UI dropdown
+```
 
 ## 📁 Project Structure
 
@@ -161,63 +146,26 @@ The production server serves both the API and the built frontend.
 docuchat/
 ├── app/                      # Backend (Python/FastAPI)
 │   ├── routes.py            # API endpoints
-│   ├── models.py            # Database models
-│   ├── database.py          # Database configuration
-│   ├── document_parser.py   # Document text extraction
-│   └── init_db.py           # Database initialization
+│   ├── document_parser.py   # PDF and TXT text extraction
+│   └── file_storage.py      # In-memory document storage
 ├── client/                   # Frontend (React)
 │   ├── src/
 │   │   ├── components/      # React components
-│   │   ├── lib/            # Utilities
 │   │   ├── App.jsx         # Main app component
 │   │   └── main.jsx        # Entry point
 │   └── index.html
 ├── main.py                  # FastAPI entry point
 ├── requirements.txt         # Python dependencies
 ├── package.json            # Node.js dependencies
-├── vite.config.js          # Vite configuration
-└── README_LOCAL_SETUP.md   # This file
+└── vite.config.js          # Vite configuration
 ```
-
-## 🔧 Configuration
-
-### Database Setup
-
-By default, the app uses in-memory SQLite. To use PostgreSQL:
-
-1. Install PostgreSQL
-2. Create a database:
-   ```bash
-   createdb docuchat
-   ```
-3. Update `.env`:
-   ```
-   DATABASE_URL=postgresql://user:password@localhost:5432/docuchat
-   ```
-4. Update `app/database.py` to use PostgreSQL connection string
-
-### Ollama Models
-
-1. Ensure Ollama is running:
-   ```bash
-   ollama serve
-   ```
-
-2. Pull models you want to use:
-   ```bash
-   ollama pull llama2
-   ollama pull mistral
-   ollama pull codellama
-   ```
-
-3. Models will appear in the DocuChat interface automatically
 
 ## 🐛 Troubleshooting
 
 ### Backend won't start
 
-**Problem**: `ModuleNotFoundError: No module named 'fastapi'`
-- **Solution**: Make sure virtual environment is activated and dependencies are installed
+**Problem**: `ModuleNotFoundError`
+- **Solution**: Ensure virtual environment is activated and dependencies are installed
   ```bash
   source venv/bin/activate
   pip install -r requirements.txt
@@ -225,7 +173,7 @@ By default, the app uses in-memory SQLite. To use PostgreSQL:
 
 ### Frontend can't connect to backend
 
-**Problem**: `ECONNREFUSED` errors in browser console
+**Problem**: `ECONNREFUSED` errors
 - **Solution**: Ensure backend is running on port 8000
   ```bash
   # Check if port 8000 is in use
@@ -233,58 +181,50 @@ By default, the app uses in-memory SQLite. To use PostgreSQL:
   netstat -ano | findstr :8000  # Windows
   ```
 
-### OCR not working
+### Ollama 404 Error
 
-**Problem**: `TesseractNotFoundError`
-- **Solution**: Install Tesseract OCR (see Prerequisites)
-
-### Ollama models not loading
-
-**Problem**: "Failed to fetch Ollama models"
+**Problem**: "Ollama API error: 404"
 - **Solution**: 
   1. Check Ollama is running: `ollama list`
-  2. Verify OLLAMA_BASE_URL in `.env`
-  3. Make sure you've pulled at least one model
+  2. Make sure you've pulled a model: `ollama pull llama3.2`
+  3. **Select the model from the dropdown in the UI** - don't rely on defaults
+  4. If no models appear in dropdown, check Ollama connection
 
-### Database errors
+### Export not working
 
-**Problem**: `pg_config executable not found`
-- **Solution**: Either install PostgreSQL dev files OR switch to SQLite
+**Problem**: Export buttons return 500 error
+- **Solution**: Make sure you have a conversation with the document first. Upload a document, ask a question, then try exporting.
 
 ## 📝 Available Scripts
 
 ```bash
-npm run dev          # Run both backend and frontend
-npm run build        # Build frontend for production
-npm start           # Run production server
-npm run check       # TypeScript type checking
+npm run dev              # Start frontend dev server (port 5000)
+npm run dev:frontend     # Same as above
+npm run dev:backend      # Start backend server (port 8000)
+npm run build            # Build frontend for production
+npm start                # Run production server (port 5000)
 ```
 
 ## 🌐 API Endpoints
 
 - `GET /api/documents` - List all documents
-- `POST /api/documents/upload` - Upload a document
+- `POST /api/documents/upload` - Upload a document (PDF or TXT only)
 - `DELETE /api/documents/:id` - Delete a document
 - `GET /api/models` - List available Ollama models
-- `POST /api/chat` - Send a chat message (streaming)
+- `POST /api/chat` - Send a chat message (requires model selection)
 - `GET /api/conversations/:documentId` - Get conversation for document
 - `GET /api/messages/:conversationId` - Get messages for conversation
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test locally
-5. Submit a pull request
+- `GET /api/documents/:id/export/json` - Export conversation as JSON
+- `GET /api/documents/:id/export/markdown` - Export conversation as Markdown
+- `GET /api/documents/:id/export/pdf` - Export conversation as PDF
 
 ## 📄 License
 
-MIT License - see LICENSE file for details
+MIT License
 
 ## 🆘 Support
 
-For issues or questions:
+For issues:
 - Check the Troubleshooting section above
-- Review the project documentation
-- Open an issue on GitHub
+- Make sure Ollama is configured with at least one model
+- Verify you've selected a model from the UI dropdown
