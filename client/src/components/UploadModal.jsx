@@ -27,24 +27,12 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
     const validTypes = [
       'application/pdf',
       'text/plain',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/csv',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel',
-      'text/markdown',
-      'text/html',
-      'application/rtf',
     ];
     
-    const validExtensions = [
-      'pdf', 'txt', 'docx', 'csv', 'xlsx', 'xls', 'md', 'html', 'htm', 'rtf',
-      'js', 'jsx', 'ts', 'tsx', 'py', 'java', 'c', 'cpp', 'cs', 'go', 'rs', 
-      'rb', 'php', 'swift', 'kt', 'r', 'sql', 'sh', 'bash', 'json', 'xml', 
-      'yaml', 'yml', 'css', 'scss', 'sass', 'less'
-    ];
+    const validExtensions = ['pdf', 'txt'];
 
     if (!validTypes.includes(selectedFile.type) && !validExtensions.includes(extension)) {
-      alert('Unsupported file type. Please upload PDF, DOCX, TXT, CSV, MD, HTML, RTF, Excel, or source code files.');
+      alert('Unsupported file type. Only PDF and TXT files are supported.');
       return;
     }
 
@@ -138,12 +126,12 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
             <div className="upload-icon">⬆</div>
             <p className="dropzone-text">Drop your document here</p>
             <p className="dropzone-subtext">or click to browse</p>
-            <p className="dropzone-info">Supports PDF, TXT, DOCX, and more (max 10MB)</p>
+            <p className="dropzone-info">Supports PDF and TXT files only (max 10MB)</p>
             <input
               id="file-input"
               type="file"
               onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-              accept=".pdf,.txt,.docx,.csv,.xlsx,.md,.html,.js,.jsx,.ts,.tsx,.py,.java"
+              accept=".pdf,.txt"
               style={{ display: 'none' }}
             />
           </div>
