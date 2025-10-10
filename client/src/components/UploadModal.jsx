@@ -1,14 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export default function UploadModal({ onUploadComplete, onClose, onUploadingChange }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const abortControllerRef = useRef(null);
+  const progressTimersRef = useRef([]);
 
   useEffect(() => {
     onUploadingChange(uploading);
   }, [uploading, onUploadingChange]);
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      progressTimersRef.current.forEach(timer => clearTimeout(timer));
+    };
+  }, []);
 
   const handleFileSelect = async (selectedFile) => {
     const extension = selectedFile.name.split('.').pop()?.toLowerCase() || '';
@@ -53,16 +64,22 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
     setUploading(true);
     setProgress(30);
 
+    abortControllerRef.current = new AbortController();
+    progressTimersRef.current.forEach(timer => clearTimeout(timer));
+    progressTimersRef.current = [];
+
     const formData = new FormData();
     formData.append('file', uploadFile);
 
     try {
-      setTimeout(() => setProgress(60), 300);
-      setTimeout(() => setProgress(90), 600);
+      const timer1 = setTimeout(() => setProgress(60), 300);
+      const timer2 = setTimeout(() => setProgress(90), 600);
+      progressTimersRef.current = [timer1, timer2];
 
       const response = await fetch('/api/documents/upload', {
         method: 'POST',
         body: formData,
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) throw new Error('Upload failed');
@@ -71,6 +88,10 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
       setProgress(100);
       onUploadComplete(document);
     } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('Upload canceled by user');
+        return;
+      }
       console.error('Upload error:', error);
       alert('Upload failed. Please try again');
       setUploading(false);
@@ -80,6 +101,11 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
   };
 
   const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    progressTimersRef.current.forEach(timer => clearTimeout(timer));
+    progressTimersRef.current = [];
     setUploading(false);
     setProgress(0);
     setFile(null);
