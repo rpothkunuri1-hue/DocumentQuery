@@ -1,27 +1,33 @@
 :root {
   --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-tertiary: #f1f5f9;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --border-color: #e2e8f0;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
   --accent: #3b82f6;
   --accent-hover: #2563eb;
-  --accent-light: rgba(59, 130, 246, 0.05);
+  --accent-light: rgba(59, 130, 246, 0.08);
   --modal-overlay: rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 .dark {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --border-color: #334155;
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --bg-tertiary: #374151;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --border-color: #374151;
   --accent: #3b82f6;
   --accent-hover: #2563eb;
-  --accent-light: rgba(59, 130, 246, 0.1);
-  --modal-overlay: rgba(0, 0, 0, 0.7);
+  --accent-light: rgba(59, 130, 246, 0.15);
+  --modal-overlay: rgba(0, 0, 0, 0.75);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -45,8 +51,8 @@ body {
 }
 
 .sidebar {
-  width: 300px;
-  background: var(--bg-secondary);
+  width: 280px;
+  background: var(--bg-primary);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
@@ -77,7 +83,7 @@ body {
 }
 
 .document-item {
-  padding: 0.75rem;
+  padding: 0.875rem;
   border-radius: 0.5rem;
   cursor: pointer;
   border: 1px solid transparent;
@@ -86,7 +92,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   position: relative;
   z-index: 2;
   touch-action: pan-y;
@@ -139,13 +145,19 @@ body {
 }
 
 .document-item:hover {
-  background: var(--bg-primary);
+  background: var(--bg-tertiary);
   border-color: var(--border-color);
 }
 
 .document-item.active {
-  background: var(--accent);
-  color: white;
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.document-item.active h3,
+.document-item.active p {
+  color: var(--accent);
 }
 
 .document-info {
@@ -202,17 +214,22 @@ body {
 }
 
 .header {
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
 }
 
 .header h1 {
   font-size: 1.5rem;
+  font-weight: 700;
   flex: 1;
+  background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .header-actions {
@@ -546,10 +563,11 @@ body {
 
 .message-content {
   background: var(--bg-secondary);
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  line-height: 1.5;
+  padding: 0.875rem 1.125rem;
+  border-radius: 1rem;
+  line-height: 1.6;
   white-space: pre-wrap;
+  box-shadow: var(--shadow-sm);
 }
 
 .message.user .message-content {
@@ -682,29 +700,31 @@ body {
 }
 
 .chat-input {
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 1.5rem;
   border-top: 1px solid var(--border-color);
   display: flex;
   gap: 0.75rem;
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
 }
 
 .chat-input textarea {
   flex: 1;
-  border: 1px solid var(--border-color);
-  border-radius: 0.5rem;
-  padding: 0.75rem;
+  border: 1.5px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   resize: none;
   max-height: 150px;
   background: var(--bg-primary);
   color: var(--text-primary);
+  transition: all 0.2s;
 }
 
 .chat-input textarea:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
 }
 
 .btn {
@@ -726,10 +746,13 @@ body {
   background: var(--accent);
   color: white;
   width: 100%;
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .btn-outline {
@@ -762,18 +785,26 @@ body {
 }
 
 .btn-send {
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1.125rem;
   background: var(--accent);
   color: white;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   border: none;
   cursor: pointer;
   transition: all 0.2s;
   font-size: 1.25rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-send:hover:not(:disabled) {
   background: var(--accent-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.btn-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .modal {
@@ -793,6 +824,8 @@ body {
   max-width: 500px;
   width: 100%;
   padding: 1.5rem;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
 }
 
 .modal-header {
@@ -860,6 +893,15 @@ body {
 .upload-progress {
   margin-top: 1rem;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.upload-status {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
 }
 
 .progress-bar {
@@ -868,7 +910,6 @@ body {
   background: var(--bg-secondary);
   border-radius: 1rem;
   overflow: hidden;
-  margin-bottom: 0.5rem;
 }
 
 .progress-fill {
@@ -934,12 +975,17 @@ body {
 }
 
 .sidebar-section-header {
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 1rem;
   border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
 }
 
 .sidebar-section-header h3 {
-  font-size: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
   margin-bottom: 0.75rem;
 }
 
@@ -1627,21 +1673,32 @@ body {
 .icon-sun::before {
   content: '';
   position: absolute;
-  top: -6px;
+  top: -7px;
   left: 50%;
   transform: translateX(-50%);
   width: 2px;
-  height: 4px;
+  height: 5px;
   background: currentColor;
   box-shadow: 
-    12px 3px 0 currentColor,
-    12px 12px 0 currentColor,
-    3px 12px 0 currentColor,
-    -6px 12px 0 currentColor,
-    -12px 3px 0 currentColor,
-    -12px -6px 0 currentColor,
-    -6px -12px 0 currentColor,
-    3px -12px 0 currentColor;
+    0 27px 0 currentColor,
+    7px 20px 0 currentColor,
+    -7px 20px 0 currentColor,
+    7px 7px 0 currentColor,
+    -7px 7px 0 currentColor,
+    20px 13px 0 currentColor,
+    -20px 13px 0 currentColor,
+    14px 0 0 currentColor;
+}
+
+.icon-sun::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -8px;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 2px;
+  background: currentColor;
 }
 
 .icon-moon {
