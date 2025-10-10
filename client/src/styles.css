@@ -1670,20 +1670,27 @@ body {
   font-weight: bold;
 }
 
+.icon-sun {
+  transition: all 0.3s ease-in-out;
+}
+
 .icon-sun::before {
   content: '☀';
   font-size: 22px;
   color: #f59e0b;
+  transition: color 0.3s ease-in-out;
 }
 
 .icon-moon {
   transform: rotate(-30deg);
+  transition: all 0.3s ease-in-out;
 }
 
 .icon-moon::before {
   content: '☾';
   font-size: 22px;
   color: #94a3b8;
+  transition: color 0.3s ease-in-out;
 }
 
 .icon-x::before,
