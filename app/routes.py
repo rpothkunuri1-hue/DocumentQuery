@@ -104,9 +104,21 @@ SUMMARY:"""
         print(f"Failed to generate summary: {e}")
         return ""
 
+async def generate_summary_background(document_id: str, content: str, model: str):
+    """Generate summary in the background and update document"""
+    try:
+        summary = await generate_document_summary(content, model)
+        if summary:
+            FileStorage.update_document(document_id, {"summary": summary, "summary_status": "completed"})
+        else:
+            FileStorage.update_document(document_id, {"summary_status": "failed"})
+    except Exception as e:
+        print(f"Background summary generation failed: {e}")
+        FileStorage.update_document(document_id, {"summary_status": "failed"})
+
 @router.post("/api/documents/upload")
 async def upload_document(file: UploadFile = File(...), model: Optional[str] = None):
-    """Upload document with auto text extraction and summary generation"""
+    """Upload document with auto text extraction and background summary generation"""
     try:
         if not file.filename:
             raise HTTPException(status_code=400, detail="No file provided")
@@ -133,19 +145,24 @@ async def upload_document(file: UploadFile = File(...), model: Optional[str] = N
         else:
             raise HTTPException(status_code=400, detail="Unsupported file type. Only PDF and TXT files are supported.")
         
-        # Create document in file storage
-        document = FileStorage.create_document(
-            name=file.filename,
-            type=mimetype,
-            size=file_size,
-            content=content
-        )
+        # Create document in file storage with summary_status
+        document_data = {
+            "name": file.filename,
+            "type": mimetype,
+            "size": file_size,
+            "content": content
+        }
         
-        # Auto-generate summary with Ollama if model is provided
+        # Mark summary as generating if model is provided
         if model and content and len(content.strip()) >= 50:
-            summary = await generate_document_summary(content, model)
-            if summary:
-                document = FileStorage.update_document(document["id"], {"summary": summary})
+            document_data["summary_status"] = "generating"
+        
+        document = FileStorage.create_document(**document_data)
+        
+        # Generate summary in background if model is provided
+        if model and content and len(content.strip()) >= 50:
+            import asyncio
+            asyncio.create_task(generate_summary_background(document["id"], content, model))
         
         return document
     

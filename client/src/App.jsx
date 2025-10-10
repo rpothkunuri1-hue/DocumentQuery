@@ -110,6 +110,12 @@ export default function App() {
     loadDocuments();
   };
 
+  const handleDocumentUpdate = (updatedDocument) => {
+    setDocuments(prev => prev.map(doc => 
+      doc.id === updatedDocument.id ? updatedDocument : doc
+    ));
+  };
+
   const handleDocumentDelete = async (documentId) => {
     try {
       const response = await fetch(`/api/documents/${documentId}`, {
@@ -220,7 +226,11 @@ export default function App() {
         )}
 
         {activeDocument ? (
-          <ChatInterface document={activeDocument} selectedModel={selectedModel} />
+          <ChatInterface 
+            document={activeDocument} 
+            selectedModel={selectedModel}
+            onDocumentUpdate={handleDocumentUpdate}
+          />
         ) : (
           <div className="welcome-screen">
             <div className="welcome-content">

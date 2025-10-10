@@ -14,18 +14,57 @@ export default function ChatInterface({ document: currentDocument, selectedModel
   const [exportFormat, setExportFormat] = useState('pdf');
   const [showDocSummary, setShowDocSummary] = useState(false);
   const [error, setError] = useState(null);
+  const [summaryStatus, setSummaryStatus] = useState(null);
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const summaryPollInterval = useRef(null);
 
   useEffect(() => {
     loadConversation();
     setShowDocSummary(true);
     setError(null);
+    setSummaryStatus(currentDocument.summary_status || null);
+    
+    // Start polling if summary is generating
+    if (currentDocument.summary_status === 'generating') {
+      startSummaryPolling();
+    }
+    
+    return () => {
+      if (summaryPollInterval.current) {
+        clearInterval(summaryPollInterval.current);
+      }
+    };
   }, [currentDocument.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const startSummaryPolling = () => {
+    if (summaryPollInterval.current) {
+      clearInterval(summaryPollInterval.current);
+    }
+    
+    summaryPollInterval.current = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/documents/${currentDocument.id}`);
+        if (response.ok) {
+          const doc = await response.json();
+          if (doc.summary_status !== 'generating') {
+            setSummaryStatus(doc.summary_status);
+            if (doc.summary) {
+              onDocumentUpdate({ ...currentDocument, summary: doc.summary, summary_status: doc.summary_status });
+            }
+            clearInterval(summaryPollInterval.current);
+            summaryPollInterval.current = null;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to poll summary:', error);
+      }
+    }, 2000);
+  };
 
   const loadConversation = async () => {
     try {
@@ -438,7 +477,26 @@ export default function ChatInterface({ document: currentDocument, selectedModel
             borderLeft: '4px solid #3b82f6'
           }}>
             <h3 style={{ marginTop: 0, marginBottom: '8px', color: '#1e40af' }}>Document Loaded</h3>
-            {currentDocument.summary ? (
+            {summaryStatus === 'generating' ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', color: '#1e40af' }}>
+                  <div className="spinner" style={{ 
+                    width: '16px', 
+                    height: '16px', 
+                    border: '2px solid #e0e7ff',
+                    borderTop: '2px solid #3b82f6',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                    marginRight: '8px'
+                  }}></div>
+                  <span>Generating AI summary...</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>
+                  This document contains <strong>{currentDocument.content ? currentDocument.content.split(' ').length : 0} words</strong>. 
+                  Summary will appear here shortly.
+                </p>
+              </>
+            ) : currentDocument.summary ? (
               <>
                 <p style={{ marginBottom: '12px', color: '#1e40af', lineHeight: '1.6' }}>
                   <strong>Summary:</strong> {currentDocument.summary}
