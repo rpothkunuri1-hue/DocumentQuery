@@ -805,8 +805,7 @@ body {
 }
 
 .btn-icon:hover {
-  background: var(--bg-tertiary);
-  transform: rotate(15deg) scale(1.1);
+  transform: scale(1.1);
 }
 
 .btn-icon:active {
@@ -1673,12 +1672,12 @@ body {
 
 .icon-sun::before {
   content: '☀';
-  font-size: 18px;
+  font-size: 22px;
 }
 
 .icon-moon::before {
   content: '☾';
-  font-size: 18px;
+  font-size: 22px;
 }
 
 .icon-x::before,
@@ -1724,8 +1723,9 @@ body {
 }
 
 .icon-trash::before {
-  content: '🗑';
-  font-size: 16px;
+  content: '×';
+  font-size: 20px;
+  font-weight: bold;
 }
 
 .icon-check::before {
