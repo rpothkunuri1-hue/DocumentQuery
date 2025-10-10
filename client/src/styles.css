@@ -1677,7 +1677,7 @@ body {
 }
 
 .icon-moon {
-  transform: rotate(30deg);
+  transform: rotate(-30deg);
 }
 
 .icon-moon::before {
