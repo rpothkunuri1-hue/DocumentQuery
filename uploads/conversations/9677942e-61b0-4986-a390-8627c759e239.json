@@ -2,6 +2,29 @@
   "id": "9677942e-61b0-4986-a390-8627c759e239",
   "document_id": "5007853c-a09f-4638-be7c-7b9b2c3bb3a8",
   "document_ids": [],
-  "messages": [],
+  "messages": [
+    {
+      "id": "dbb76904-8a75-4ae5-9419-32a6ffd0dad1",
+      "conversation_id": "9677942e-61b0-4986-a390-8627c759e239",
+      "role": "user",
+      "content": "test",
+      "rating": null,
+      "edited": false,
+      "original_content": null,
+      "model_used": null,
+      "created_at": "2025-10-10T18:05:56.145177"
+    },
+    {
+      "id": "aea61acf-ed64-4d6a-8107-34e458c4bab5",
+      "conversation_id": "9677942e-61b0-4986-a390-8627c759e239",
+      "role": "assistant",
+      "content": "",
+      "rating": null,
+      "edited": false,
+      "original_content": null,
+      "model_used": null,
+      "created_at": "2025-10-10T18:05:56.145622"
+    }
+  ],
   "created_at": "2025-10-10T13:03:46.091404"
 }

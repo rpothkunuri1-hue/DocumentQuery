@@ -5,18 +5,30 @@ DocuChat is a simplified document viewer application that allows users to upload
 
 ## Recent Changes (October 10, 2025)
 - **Import Complete:** Successfully migrated project to Replit environment with all dependencies installed
+- **Fixed Large File Upload Issue (NEW):** Resolved upload failures for files > 2MB
+  - Implemented chunked file reading (1MB chunks) instead of reading entire file at once
+  - Added proper 413 status code for files exceeding 10MB limit
+  - Improved error messages to clearly indicate when file size limit is exceeded
+  - Better memory management for handling larger files up to 10MB
+- **App Naming Consistency (NEW):** Updated all references to use "DocuChat" branding
+  - Changed package.json name from "rest-express" to "docuchat"
+  - Consistent naming across frontend, backend, and documentation
+- **Improved Loading Animation (NEW):** Replaced loading dots with natural bouncing animation
+  - Changed from simple pulse animation to smooth bouncing dots
+  - Custom keyframe animation for better visual feedback
+  - Staggered animation delay creates natural wave effect
 - **Fixed PDF Export Error:** Resolved 500 error by converting fpdf2 bytearray output to bytes for FastAPI Response
-- **Unified Export System (NEW):** Complete redesign of export functionality
+- **Unified Export System:** Complete redesign of export functionality
   - Merged document summary and conversation history into single export files
   - All formats (PDF, TXT, MD, JSON) now include both document content and chat history
   - Replaced 4 separate export buttons with ONE unified "Export" button
   - Added modal popup for format selection with clear descriptions
   - Improved file naming and error handling
-- **Document Summary on Upload (NEW):** Automatic summary display when document loads
+- **Document Summary on Upload:** Automatic summary display when document loads
   - Shows word count and document information
   - Prompts user to ask questions about the document
   - Hides after first message to keep chat clean
-- **Enhanced Error Handling (NEW):** Specific, actionable error messages
+- **Enhanced Error Handling:** Specific, actionable error messages
   - Error banner displays at top of chat with dismiss button
   - Backend provides detailed error descriptions
   - No more generic error messages
@@ -117,14 +129,17 @@ DocuChat employs a client-server architecture:
 
 ## Key Improvements Made
 
-1. **Unified Export System:** All export formats include both document summary and conversation history
-2. **Single Export Button:** Replaced 4 buttons with 1 unified button + modal for better UX
-3. **Document Summary on Upload:** Users immediately see word count and are prompted to ask questions
-4. **Specific Error Messages:** Detailed error feedback instead of generic messages
-5. **Scope Validation:** AI strictly answers only from document content, no out-of-scope responses
-6. **No Hardcoded Models:** Backend no longer defaults to 'llama2', preventing 404 errors
-7. **Dynamic Model Detection:** UI automatically detects and displays installed Ollama models
-8. **Local-First Design:** No Replit-specific code, runs perfectly on local systems
+1. **Fixed Large File Uploads:** Chunked reading prevents failures for files > 2MB (up to 10MB supported)
+2. **Consistent Branding:** All references now use "DocuChat" naming across the entire application
+3. **Natural Loading Animation:** Smooth bouncing dots replace simple pulse animation for better UX
+4. **Unified Export System:** All export formats include both document summary and conversation history
+5. **Single Export Button:** Replaced 4 buttons with 1 unified button + modal for better UX
+6. **Document Summary on Upload:** Users immediately see word count and are prompted to ask questions
+7. **Specific Error Messages:** Detailed error feedback instead of generic messages
+8. **Scope Validation:** AI strictly answers only from document content, no out-of-scope responses
+9. **No Hardcoded Models:** Backend no longer defaults to 'llama2', preventing 404 errors
+10. **Dynamic Model Detection:** UI automatically detects and displays installed Ollama models
+11. **Local-First Design:** No Replit-specific code, runs perfectly on local systems
 
 ## Troubleshooting
 
