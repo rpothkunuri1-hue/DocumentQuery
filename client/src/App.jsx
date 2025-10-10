@@ -231,7 +231,7 @@ export default function App() {
                 <p>✓ Support for PDF and TXT files</p>
                 <p>✓ Real-time streaming responses with conversation memory</p>
                 <p>✓ Export conversations to PDF, Markdown, or JSON</p>
-                <p>✓ Swipe to delete documents • Edit, regenerate, and rate messages</p>
+                <p>✓ Swipe to delete (mobile) • Edit, regenerate, and rate messages</p>
               </div>
             </div>
           </div>

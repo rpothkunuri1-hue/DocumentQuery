@@ -1665,9 +1665,8 @@ body {
 }
 
 .icon-upload::before {
-  content: '↑';
-  font-size: 18px;
-  font-weight: bold;
+  content: '⬆';
+  font-size: 20px;
 }
 
 .icon-sun {
