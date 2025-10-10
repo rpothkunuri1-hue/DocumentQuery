@@ -98,8 +98,19 @@ SUMMARY:"""
             if response.status_code == 200:
                 data = response.json()
                 return data.get("response", "").strip()
-            else:
+            elif response.status_code == 404:
+                print(f"Model '{model_name}' not found in Ollama")
                 return ""
+            elif response.status_code == 500:
+                error_text = response.text
+                print(f"Ollama server error (500): {error_text}")
+                return ""
+            else:
+                print(f"Ollama API returned status {response.status_code}: {response.text}")
+                return ""
+    except httpx.ConnectError as e:
+        print(f"Cannot connect to Ollama at {OLLAMA_BASE_URL}: {e}")
+        return ""
     except Exception as e:
         print(f"Failed to generate summary: {e}")
         return ""

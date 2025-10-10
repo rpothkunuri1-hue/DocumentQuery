@@ -25,7 +25,13 @@ export default function ChatInterface({ document: currentDocument, selectedModel
     setError(null);
     setSummaryStatus(currentDocument.summary_status || null);
     
-    // Start polling if summary is generating
+    // Clean up any existing polling interval first
+    if (summaryPollInterval.current) {
+      clearInterval(summaryPollInterval.current);
+      summaryPollInterval.current = null;
+    }
+    
+    // Start polling only if summary is generating
     if (currentDocument.summary_status === 'generating') {
       startSummaryPolling();
     }
@@ -33,6 +39,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
     return () => {
       if (summaryPollInterval.current) {
         clearInterval(summaryPollInterval.current);
+        summaryPollInterval.current = null;
       }
     };
   }, [currentDocument.id]);
@@ -42,8 +49,10 @@ export default function ChatInterface({ document: currentDocument, selectedModel
   }, [messages]);
 
   const startSummaryPolling = () => {
+    // Clear any existing interval first
     if (summaryPollInterval.current) {
       clearInterval(summaryPollInterval.current);
+      summaryPollInterval.current = null;
     }
     
     summaryPollInterval.current = setInterval(async () => {
@@ -53,15 +62,15 @@ export default function ChatInterface({ document: currentDocument, selectedModel
           const doc = await response.json();
           if (doc.summary_status !== 'generating') {
             setSummaryStatus(doc.summary_status);
-            if (doc.summary) {
-              onDocumentUpdate({ ...currentDocument, summary: doc.summary, summary_status: doc.summary_status });
-            }
             clearInterval(summaryPollInterval.current);
             summaryPollInterval.current = null;
           }
         }
       } catch (error) {
         console.error('Failed to poll summary:', error);
+        // Stop polling on error to prevent infinite failed requests
+        clearInterval(summaryPollInterval.current);
+        summaryPollInterval.current = null;
       }
     }, 2000);
   };
