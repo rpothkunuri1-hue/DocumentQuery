@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, StopCircle, Copy, RotateCcw, Edit2, ThumbsUp, ThumbsDown, Trash2, Check, Download, FileText, FileJson } from 'lucide-react';
 
 export default function ChatInterface({ document: currentDocument, selectedModel }) {
   const [messages, setMessages] = useState([]);
@@ -283,7 +282,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
             data-testid="button-download-summary"
             style={{ backgroundColor: '#10b981', color: 'white' }}
           >
-            <Download className="w-4 h-4" />
+            <span className="icon icon-download"></span>
             <span>Summary</span>
           </button>
           <button
@@ -292,7 +291,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
             title="Export Conversation as PDF"
             data-testid="button-export-pdf"
           >
-            <Download className="w-4 h-4" />
+            <span className="icon icon-download"></span>
             <span>PDF</span>
           </button>
           <button
@@ -301,7 +300,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
             title="Export Conversation as Markdown"
             data-testid="button-export-md"
           >
-            <FileText className="w-4 h-4" />
+            <span className="icon icon-file"></span>
             <span>MD</span>
           </button>
           <button
@@ -310,7 +309,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
             title="Export Conversation as JSON"
             data-testid="button-export-json"
           >
-            <FileJson className="w-4 h-4" />
+            <span className="icon icon-code"></span>
             <span>JSON</span>
           </button>
         </div>
@@ -346,7 +345,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
                         data-testid={`button-save-edit-${message.id}`}
                         title="Save and regenerate"
                       >
-                        <Check className="w-4 h-4" />
+                        <span className="icon icon-check"></span>
                         Save & Regenerate
                       </button>
                       <button
@@ -375,11 +374,8 @@ export default function ChatInterface({ document: currentDocument, selectedModel
                               title="Copy message"
                               data-testid={`button-copy-${message.id}`}
                             >
-                              {copiedMessageId === message.id ? (
-                                <Check className="w-4 h-4 text-green-500" />
-                              ) : (
-                                <Copy className="w-4 h-4" />
-                              )}
+                              <span className={`icon ${copiedMessageId === message.id ? 'icon-check' : 'icon-copy'}`} 
+                                style={copiedMessageId === message.id ? { color: '#10b981' } : {}}></span>
                             </button>
                             
                             <button
@@ -389,7 +385,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
                               title="Regenerate response"
                               data-testid={`button-regenerate-${message.id}`}
                             >
-                              <RotateCcw className="w-4 h-4" />
+                              <span className="icon icon-rotate"></span>
                             </button>
                             
                             <button
@@ -398,7 +394,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
                               title="Rate positively"
                               data-testid={`button-thumbs-up-${message.id}`}
                             >
-                              <ThumbsUp className={`w-4 h-4 ${messageRatings[message.id] === 'up' ? 'fill-current' : ''}`} />
+                              <span className={`icon icon-thumbs-up ${messageRatings[message.id] === 'up' ? 'fill' : ''}`}></span>
                             </button>
                             
                             <button
@@ -407,7 +403,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
                               title="Rate negatively"
                               data-testid={`button-thumbs-down-${message.id}`}
                             >
-                              <ThumbsDown className={`w-4 h-4 ${messageRatings[message.id] === 'down' ? 'fill-current' : ''}`} />
+                              <span className={`icon icon-thumbs-down ${messageRatings[message.id] === 'down' ? 'fill' : ''}`}></span>
                             </button>
                           </>
                         )}
@@ -420,7 +416,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
                             title="Edit message"
                             data-testid={`button-edit-${message.id}`}
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <span className="icon icon-edit"></span>
                           </button>
                         )}
                         
@@ -431,7 +427,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
                           title="Delete message and responses"
                           data-testid={`button-delete-${message.id}`}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <span className="icon icon-trash"></span>
                         </button>
                       </div>
                     )}
@@ -488,7 +484,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
             onClick={stopGeneration}
             data-testid="button-stop"
           >
-            <StopCircle className="w-5 h-5" />
+            <span className="icon icon-stop"></span>
           </button>
         ) : (
           <button 
@@ -497,7 +493,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
             disabled={!input.trim()} 
             data-testid="button-send"
           >
-            <Send className="w-5 h-5" />
+            <span className="icon icon-send"></span>
           </button>
         )}
       </form>

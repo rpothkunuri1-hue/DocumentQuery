@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Trash2 } from 'lucide-react';
 
 export default function DocumentList({ 
   documents, 
@@ -107,7 +106,7 @@ export default function DocumentList({
                   title="Delete document"
                   data-testid={`button-delete-${doc.id}`}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <span className="icon icon-trash"></span>
                 </button>
               )}
             </div>

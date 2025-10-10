@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Menu, Upload, Sun, Moon, X } from 'lucide-react';
 import DocumentList from './components/DocumentList';
 import ChatInterface from './components/ChatInterface';
 import UploadModal from './components/UploadModal';
@@ -145,10 +144,6 @@ export default function App() {
       )}
       
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <h2>DocuChat</h2>
-        </div>
-        
         <div className="sidebar-section-header">
           <h3>Documents</h3>
           <div className="sidebar-header-actions">
@@ -157,7 +152,7 @@ export default function App() {
               onClick={() => setShowUpload(true)}
               data-testid="button-upload"
             >
-              <Upload size={16} className="icon" />
+              <span className="icon icon-upload"></span>
               <span>Upload</span>
             </button>
           </div>
@@ -178,7 +173,7 @@ export default function App() {
             data-testid="button-menu"
             title="Toggle sidebar"
           >
-            <Menu size={24} />
+            <span className="icon icon-menu"></span>
           </button>
           <h1>DocuChat</h1>
           <div className="header-actions">
@@ -206,7 +201,7 @@ export default function App() {
               title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
               data-testid="button-theme"
             >
-              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+              <span className={`icon ${theme === 'light' ? 'icon-moon' : 'icon-sun'}`}></span>
             </button>
           </div>
         </header>
@@ -219,7 +214,7 @@ export default function App() {
               onClick={() => setError(null)}
               data-testid="button-error-close"
             >
-              <X size={16} />
+              <span className="icon icon-x"></span>
             </button>
           </div>
         )}
