@@ -5,10 +5,18 @@ DocuChat is a simplified document viewer application that allows users to upload
 
 ## Recent Changes (October 10, 2025)
 - **Import Complete:** Successfully migrated project to Replit environment with all dependencies installed
-- **Fixed Upload Error (NEW):** Resolved "unexpected keyword argument" error in FileStorage
+- **Fixed Ollama 500 Error (NEW):** Enhanced error handling for Ollama API integration
+  - Added specific error handling for 404 (model not found), 500 (server error), and connection errors
+  - Detailed logging helps diagnose Ollama configuration issues
+  - Prevents crashes when Ollama is unavailable or misconfigured
+- **Fixed Multiple Polling Issue (NEW):** Resolved duplicate summary API calls
+  - Fixed polling interval cleanup to prevent multiple simultaneous requests
+  - Added error handling to stop polling on failures
+  - Removed non-existent function call that was causing errors
+- **Fixed Upload Error:** Resolved "unexpected keyword argument" error in FileStorage
   - Added summary_status field to default document structure
   - Fixed upload flow to properly handle summary generation status
-- **Fixed Large File Upload Issue (NEW):** Resolved upload failures for files > 2MB
+- **Fixed Large File Upload Issue:** Resolved upload failures for files > 2MB
   - Implemented chunked file reading (1MB chunks) instead of reading entire file at once
   - Added proper 413 status code for files exceeding 10MB limit
   - Improved error messages to clearly indicate when file size limit is exceeded
