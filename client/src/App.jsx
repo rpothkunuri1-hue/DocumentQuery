@@ -22,9 +22,9 @@ export default function App() {
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('ollama-model') || 'llama2';
+      return localStorage.getItem('ollama-model') || null;
     }
-    return 'llama2';
+    return null;
   });
   const [error, setError] = useState(null);
 
@@ -32,6 +32,16 @@ export default function App() {
     loadDocuments();
     loadModels();
   }, []);
+
+  useEffect(() => {
+    if (availableModels.length > 0 && !selectedModel) {
+      const firstModel = availableModels[0];
+      setSelectedModel(firstModel);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ollama-model', firstModel);
+      }
+    }
+  }, [availableModels, selectedModel]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -173,11 +183,12 @@ export default function App() {
           <h1>DocuChat</h1>
           <div className="header-actions">
             <select 
-              value={selectedModel} 
+              value={selectedModel || ''} 
               onChange={(e) => setSelectedModel(e.target.value)}
               className="model-selector-header"
               title="Select Ollama model"
               data-testid="select-model"
+              disabled={availableModels.length === 0}
             >
               {availableModels.length > 0 ? (
                 availableModels.map((model) => (
@@ -186,16 +197,7 @@ export default function App() {
                   </option>
                 ))
               ) : (
-                <>
-                  <option value="llama2">Llama 2</option>
-                  <option value="llama3">Llama 3</option>
-                  <option value="llama3.1">Llama 3.1</option>
-                  <option value="mistral">Mistral</option>
-                  <option value="mixtral">Mixtral</option>
-                  <option value="codellama">Code Llama</option>
-                  <option value="gemma">Gemma</option>
-                  <option value="phi">Phi</option>
-                </>
+                <option value="" disabled>No models found - install Ollama model</option>
               )}
             </select>
             <button 
@@ -231,9 +233,9 @@ export default function App() {
               <h2>Welcome to DocuChat</h2>
               <p>Upload a document to start having intelligent conversations about its content.</p>
               <div className="features">
-                <p>✓ Support for PDF, TXT, CSV, Excel, MD, HTML, and code files</p>
+                <p>✓ Support for PDF and TXT files</p>
                 <p>✓ Real-time streaming responses with conversation memory</p>
-                <p>✓ Export to PDF, Markdown, or JSON</p>
+                <p>✓ Export conversations to PDF, Markdown, or JSON</p>
                 <p>✓ Swipe to delete documents • Edit, regenerate, and rate messages</p>
               </div>
             </div>
