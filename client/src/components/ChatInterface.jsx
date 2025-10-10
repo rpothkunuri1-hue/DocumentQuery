@@ -285,9 +285,18 @@ export default function ChatInterface({ document: currentDocument, selectedModel
 
   const LoadingDots = () => (
     <div className="flex items-center gap-1" data-testid="loading-animation">
-      <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
-      <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '150ms' }}></span>
-      <span className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
+      <style>{`
+        @keyframes bounce-dot {
+          0%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-8px); }
+        }
+        .bounce-dot-1 { animation: bounce-dot 1.4s infinite ease-in-out; animation-delay: 0s; }
+        .bounce-dot-2 { animation: bounce-dot 1.4s infinite ease-in-out; animation-delay: 0.2s; }
+        .bounce-dot-3 { animation: bounce-dot 1.4s infinite ease-in-out; animation-delay: 0.4s; }
+      `}</style>
+      <span className="w-2 h-2 bg-gray-400 rounded-full bounce-dot-1"></span>
+      <span className="w-2 h-2 bg-gray-400 rounded-full bounce-dot-2"></span>
+      <span className="w-2 h-2 bg-gray-400 rounded-full bounce-dot-3"></span>
     </div>
   );
 

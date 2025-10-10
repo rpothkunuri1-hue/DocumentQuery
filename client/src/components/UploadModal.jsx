@@ -74,7 +74,15 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
         signal: abortControllerRef.current.signal,
       });
 
-      if (!response.ok) throw new Error('Upload failed');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail || 'Upload failed';
+        
+        if (response.status === 413) {
+          throw new Error('File size exceeds 10MB limit. Please upload a smaller file.');
+        }
+        throw new Error(errorMessage);
+      }
 
       const document = await response.json();
       setProgress(100);
@@ -85,7 +93,7 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
         return;
       }
       console.error('Upload error:', error);
-      alert('Upload failed. Please try again');
+      alert(error.message || 'Upload failed. Please try again');
       setUploading(false);
       setProgress(0);
       setFile(null);

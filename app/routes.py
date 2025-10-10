@@ -123,13 +123,19 @@ async def upload_document(file: UploadFile = File(...), model: Optional[str] = N
         if not file.filename:
             raise HTTPException(status_code=400, detail="No file provided")
         
-        # Read file content
-        content_bytes = await file.read()
-        file_size = len(content_bytes)
+        # Read file content in chunks to handle larger files
+        content_bytes = bytearray()
+        file_size = 0
+        chunk_size = 1024 * 1024  # 1MB chunks
         
-        # Check file size (10MB limit)
-        if file_size > 10 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
+        while chunk := await file.read(chunk_size):
+            file_size += len(chunk)
+            # Check file size limit during reading
+            if file_size > 10 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail="File size exceeds 10MB limit")
+            content_bytes.extend(chunk)
+        
+        content_bytes = bytes(content_bytes)
         
         # Get file extension
         extension = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
