@@ -15,7 +15,7 @@ router = APIRouter()
 
 # Ollama configuration
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama2")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", None)
 
 # Pydantic models for request bodies
 class MultiDocConversationRequest(BaseModel):
@@ -113,38 +113,9 @@ async def upload_document(file: UploadFile = File(...)):
             content=content
         )
         
-        # Auto-generate summary with Ollama (optional, async)
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                summary_prompt = f"""Provide a detailed summary of this document. Include:
-1. Main topic and purpose
-2. Key points (3-5 bullet points)
-3. Important conclusions or takeaways
-
-Document:
-{content[:3000]}
-
-Provide the response in JSON format: {{"summary": "...", "briefSummary": "...", "keyPoints": ["...", "..."]}}"""
-                
-                response = await client.post(
-                    f"{OLLAMA_BASE_URL}/api/generate",
-                    json={"model": OLLAMA_MODEL, "prompt": summary_prompt, "stream": False}
-                )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    try:
-                        parsed_summary = json.loads(data.get("response", "{}"))
-                        FileStorage.update_document(document["id"], {
-                            "summary": parsed_summary.get("summary"),
-                            "brief_summary": parsed_summary.get("briefSummary"),
-                            "key_points": parsed_summary.get("keyPoints", [])
-                        })
-                        document = FileStorage.get_document(document["id"])
-                    except:
-                        pass
-        except Exception as e:
-            print(f"Summary generation failed: {e}")
+        # Auto-generate summary with Ollama (optional, async) - Disabled for basic app
+        # Summary generation is disabled to avoid model dependency issues
+        # Enable this feature after configuring Ollama with a default model
         
         return document
     
@@ -364,6 +335,8 @@ async def chat(request: ChatRequest):
         )
         
         # Determine model to use
+        if not request.model and not OLLAMA_MODEL:
+            raise HTTPException(status_code=400, detail="No model specified. Please select a model from the dropdown.")
         model_name = request.model or OLLAMA_MODEL
         
         async def generate():
@@ -553,6 +526,8 @@ async def multi_chat(request: MultiChatRequest):
         )
         
         # Determine model to use
+        if not request.model and not OLLAMA_MODEL:
+            raise HTTPException(status_code=400, detail="No model specified. Please select a model from the dropdown.")
         model_name = request.model or OLLAMA_MODEL
         
         async def generate():
