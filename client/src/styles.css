@@ -1676,12 +1676,14 @@ body {
   color: #f59e0b;
 }
 
+.icon-moon {
+  transform: rotate(-15deg);
+}
+
 .icon-moon::before {
   content: '☾';
   font-size: 22px;
   color: #94a3b8;
-  display: inline-block;
-  transform: rotate(-15deg);
 }
 
 .icon-x::before,
