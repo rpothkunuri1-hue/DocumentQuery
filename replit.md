@@ -4,6 +4,11 @@
 DocuChat is a simplified document viewer application that allows users to upload and view PDF and TXT files with optional AI chat features. The project uses a modern tech stack with React for the frontend and FastAPI for the backend.
 
 ## Recent Changes (October 10, 2025)
+- **Import Complete:** Successfully migrated project to Replit environment with all dependencies installed
+- **Fixed PDF Export Error:** Resolved 500 error by converting fpdf2 bytearray output to bytes for FastAPI Response
+- **New Document Summary Feature:** Added ability to download document summary (extracted content) as PDF
+- **Enhanced UI:** Added green "Summary" button in chat interface for quick document summary downloads
+- **Improved Setup Script:** Updated setup.sh to automatically build frontend and run servers in Replit environment
 - **Simplified to Basic App:** Removed support for multiple file formats. Now only supports PDF and TXT files.
 - **Removed Dependencies:** Cleaned up unnecessary libraries (openpyxl, beautifulsoup4, etc.)
 - **Fixed Ollama Integration:** Removed hardcoded model defaults - users must select a model from UI
@@ -34,7 +39,8 @@ DocuChat employs a client-server architecture:
   - `DELETE /api/documents/{id}` - Delete document
   - `GET /api/models` - Get available Ollama models
   - `POST /api/chat` - Chat with document (requires model selection)
-  - `GET /api/documents/{id}/export/{format}` - Export as JSON, Markdown, or PDF
+  - `GET /api/documents/{id}/export/{format}` - Export conversation as JSON, Markdown, or PDF
+  - `GET /api/documents/{id}/summary/pdf` - Download document summary (extracted content) as PDF
 
 **Project Structure:**
 - `client/`: Frontend React application
@@ -56,7 +62,8 @@ DocuChat employs a client-server architecture:
 - PDF and TXT file upload and processing
 - Document listing and deletion
 - Dynamic model selection from Ollama
-- Export to JSON, Markdown, and PDF
+- Export conversations to JSON, Markdown, and PDF (fixed bytearray conversion issue)
+- Download document summary as PDF (new feature - extracts document content to PDF)
 
 ### ⚠️ Configuration Required:
 - **Ollama Setup (for AI chat):**
