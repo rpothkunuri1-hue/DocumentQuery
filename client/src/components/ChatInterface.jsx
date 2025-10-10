@@ -438,13 +438,27 @@ export default function ChatInterface({ document: currentDocument, selectedModel
             borderLeft: '4px solid #3b82f6'
           }}>
             <h3 style={{ marginTop: 0, marginBottom: '8px', color: '#1e40af' }}>Document Loaded</h3>
-            <p style={{ marginBottom: '12px', color: '#1e40af' }}>
-              This document contains <strong>{currentDocument.content ? currentDocument.content.split(' ').length : 0} words</strong>. 
-              You can now ask questions about the content within this document.
-            </p>
-            <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>
-              💡 <em>Ask me anything about "{currentDocument.name}"</em>
-            </p>
+            {currentDocument.summary ? (
+              <>
+                <p style={{ marginBottom: '12px', color: '#1e40af', lineHeight: '1.6' }}>
+                  <strong>Summary:</strong> {currentDocument.summary}
+                </p>
+                <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>
+                  This document contains <strong>{currentDocument.content ? currentDocument.content.split(' ').length : 0} words</strong>. 
+                  You can now ask questions about the content.
+                </p>
+              </>
+            ) : (
+              <>
+                <p style={{ marginBottom: '12px', color: '#1e40af' }}>
+                  This document contains <strong>{currentDocument.content ? currentDocument.content.split(' ').length : 0} words</strong>. 
+                  You can now ask questions about the content within this document.
+                </p>
+                <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>
+                  💡 <em>Ask me anything about "{currentDocument.name}"</em>
+                </p>
+              </>
+            )}
           </div>
         )}
         

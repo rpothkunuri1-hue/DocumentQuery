@@ -76,9 +76,37 @@ async def delete_document(document_id: str):
         raise HTTPException(status_code=404, detail="Document not found")
     return {"success": True}
 
+async def generate_document_summary(content: str, model_name: str) -> str:
+    """Generate a summary of the document using Ollama"""
+    try:
+        # Limit content for summary (first 4000 characters to avoid token limits)
+        truncated_content = content[:4000] if len(content) > 4000 else content
+        
+        prompt = f"""Please provide a concise summary of the following document in 2-3 sentences. Focus on the main topics, key points, and overall purpose of the document.
+
+DOCUMENT CONTENT:
+{truncated_content}
+
+SUMMARY:"""
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{OLLAMA_BASE_URL}/api/generate",
+                json={"model": model_name, "prompt": prompt, "stream": False}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("response", "").strip()
+            else:
+                return ""
+    except Exception as e:
+        print(f"Failed to generate summary: {e}")
+        return ""
+
 @router.post("/api/documents/upload")
-async def upload_document(file: UploadFile = File(...)):
-    """Upload document with auto text extraction"""
+async def upload_document(file: UploadFile = File(...), model: Optional[str] = None):
+    """Upload document with auto text extraction and summary generation"""
     try:
         if not file.filename:
             raise HTTPException(status_code=400, detail="No file provided")
@@ -113,9 +141,11 @@ async def upload_document(file: UploadFile = File(...)):
             content=content
         )
         
-        # Auto-generate summary with Ollama (optional, async) - Disabled for basic app
-        # Summary generation is disabled to avoid model dependency issues
-        # Enable this feature after configuring Ollama with a default model
+        # Auto-generate summary with Ollama if model is provided
+        if model and content and len(content.strip()) >= 50:
+            summary = await generate_document_summary(content, model)
+            if summary:
+                document = FileStorage.update_document(document["id"], {"summary": summary})
         
         return document
     

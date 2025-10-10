@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export default function UploadModal({ onUploadComplete, onClose, onUploadingChange }) {
+export default function UploadModal({ onUploadComplete, onClose, onUploadingChange, selectedModel }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -64,7 +64,11 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
       const timer2 = setTimeout(() => setProgress(90), 600);
       progressTimersRef.current = [timer1, timer2];
 
-      const response = await fetch('/api/documents/upload', {
+      const url = selectedModel 
+        ? `/api/documents/upload?model=${encodeURIComponent(selectedModel)}`
+        : '/api/documents/upload';
+
+      const response = await fetch(url, {
         method: 'POST',
         body: formData,
         signal: abortControllerRef.current.signal,

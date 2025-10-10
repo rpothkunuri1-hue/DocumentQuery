@@ -243,6 +243,7 @@ export default function App() {
           onUploadComplete={handleUploadComplete}
           onClose={() => setShowUpload(false)}
           onUploadingChange={setIsUploading}
+          selectedModel={selectedModel}
         />
       )}
     </div>
