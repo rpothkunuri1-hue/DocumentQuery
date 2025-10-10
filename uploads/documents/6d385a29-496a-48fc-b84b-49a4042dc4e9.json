@@ -1,0 +1,17 @@
+{
+  "id": "6d385a29-496a-48fc-b84b-49a4042dc4e9",
+  "name": "test.txt",
+  "type": "text/plain",
+  "size": 22,
+  "content": "Test document content",
+  "summary": null,
+  "brief_summary": null,
+  "key_points": [],
+  "tags": [],
+  "category": null,
+  "version": 1,
+  "parent_version_id": null,
+  "collection_id": null,
+  "uploaded_at": "2025-10-10T13:48:19.175039",
+  "updated_at": "2025-10-10T13:48:19.175039"
+}
