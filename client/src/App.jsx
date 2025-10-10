@@ -146,16 +146,6 @@ export default function App() {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-section-header">
           <h3>Documents</h3>
-          <div className="sidebar-header-actions">
-            <button 
-              className="btn btn-primary btn-icon-text" 
-              onClick={() => setShowUpload(true)}
-              data-testid="button-upload"
-            >
-              <span className="icon icon-upload"></span>
-              <span>Upload</span>
-            </button>
-          </div>
         </div>
         <DocumentList
           documents={documents}
@@ -163,6 +153,16 @@ export default function App() {
           onDocumentSelect={handleDocumentSelect}
           onDocumentDelete={handleDocumentDelete}
         />
+        <div className="sidebar-footer">
+          <button 
+            className="btn btn-primary btn-icon-text" 
+            onClick={() => setShowUpload(true)}
+            data-testid="button-upload"
+          >
+            <span className="icon icon-upload"></span>
+            <span>Upload</span>
+          </button>
+        </div>
       </aside>
 
       <main className="main-content">
