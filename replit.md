@@ -1,11 +1,21 @@
 # DocuChat - Basic Document Viewer
 
 ## Overview
-DocuChat is a simplified document viewer application that allows users to upload and view PDF and TXT files with optional AI chat features. The project uses a modern tech stack with React for the frontend and FastAPI for the backend.
+DocuChat is a simplified document viewer application that allows users to upload and view PDF, TXT, and DOCX files with optional AI chat features. The project uses a modern tech stack with React for the frontend and FastAPI for the backend.
 
-## Recent Changes (October 10, 2025)
+## Recent Changes (October 11, 2025)
+- **Progress Tracking for Summary Generation (LATEST):** Real-time progress updates with visual feedback
+  - Added 5-stage progress tracking: Preparing (10%), Analyzing (30%), Generating (50%), Finalizing (90%), Complete (100%)
+  - Implemented Server-Sent Events (SSE) for real-time status streaming
+  - Visual progress bar with percentage indicators and descriptive status messages
+  - Smart timeout handling: 5-minute max duration, 30-second idle detection
+  - Proper status normalization (None → "none") for accurate terminal state detection
+- **DOCX File Support:** Added support for modern Word documents (.docx)
+  - Uses python-docx library for text extraction
+  - Maintains existing PDF and TXT support
+  - Proper error handling for legacy .doc format (not supported)
 - **Import Complete:** Successfully migrated project to Replit environment with all dependencies installed
-- **Improved Ollama 500 Error Diagnostics (LATEST):** Enhanced logging and error handling for summary generation
+- **Improved Ollama 500 Error Diagnostics:** Enhanced logging and error handling for summary generation
   - Reduced content length from 4000 to 2000 characters to avoid token limits
   - Increased timeout from 60s to 120s to give Ollama more time to respond
   - Added detailed logging with [SUMMARY] and [SUMMARY ERROR] prefixes for easy debugging
@@ -71,20 +81,23 @@ DocuChat employs a client-server architecture:
 - **AI Integration:** Optional Ollama integration for document Q&A
 
 **Current Features:**
-- **Document Upload:** Supports PDF and TXT files (10MB limit)
+- **Document Upload:** Supports PDF, TXT, and DOCX files (10MB limit)
 - **Text Extraction:** 
   - PDF: Uses PyMuPDF (pymupdf) for text extraction
   - TXT: Direct text file reading with UTF-8 encoding
+  - DOCX: Uses python-docx for modern Word documents
+- **Real-Time Progress Tracking:** Visual progress bar with 5-stage updates during summary generation
 - **Optional AI Chat:** Requires Ollama with at least one model installed and selected from UI
 - **Scope-Limited Responses:** AI only answers questions from document content, rejects out-of-scope queries
 - **API Endpoints:**
   - `GET /api/documents` - List all documents
   - `GET /api/documents/{id}` - Get single document
-  - `POST /api/documents/upload` - Upload PDF or TXT file
+  - `POST /api/documents/upload` - Upload PDF, TXT, or DOCX file
   - `DELETE /api/documents/{id}` - Delete document
   - `GET /api/models` - Get available Ollama models
   - `POST /api/chat` - Chat with document (requires model selection)
-  - **`POST /api/documents/{id}/export`** - **NEW: Unified export with summary & conversation (PDF/TXT/MD/JSON)**
+  - **`POST /api/documents/{id}/export`** - Unified export with summary & conversation (PDF/TXT/MD/JSON)
+  - **`GET /api/documents/{document_id}/summary-status`** - **NEW: SSE endpoint for real-time progress updates**
   - `GET /api/documents/{id}/export/{format}` - Legacy export endpoints (deprecated)
   - `GET /api/documents/{id}/summary/pdf` - Legacy summary download (deprecated)
 
@@ -95,7 +108,7 @@ DocuChat employs a client-server architecture:
   - `src/main.jsx`: Entry point
 - `app/`: Backend FastAPI application
   - `routes.py`: API endpoints
-  - `document_parser.py`: PDF and TXT text extraction
+  - `document_parser.py`: PDF, TXT, and DOCX text extraction
   - `file_storage.py`: In-memory document storage
 - `main.py`: FastAPI server entry point
 - `dist/`: Built frontend files (served by backend)
@@ -105,13 +118,15 @@ DocuChat employs a client-server architecture:
 ### ✅ Working Features:
 - Backend server running on port 5000 (Replit) or 8000 (local)
 - Frontend built and served successfully
-- PDF and TXT file upload and processing (10MB limit)
+- PDF, TXT, and DOCX file upload and processing (10MB limit)
 - Document listing and deletion
 - Dynamic model selection from Ollama
-- **NEW: Unified export system** - Single button exports both summary and conversation in PDF/TXT/MD/JSON
-- **NEW: Document summary banner** - Shows word count and prompts on upload
-- **NEW: Specific error messages** - Detailed, actionable error feedback
-- **NEW: Scope validation** - AI only answers from document content
+- **NEW: Real-time progress tracking** - Visual progress bar with 5-stage updates during summary generation
+- **NEW: Server-Sent Events (SSE)** - Efficient real-time status updates without polling
+- Unified export system - Single button exports both summary and conversation in PDF/TXT/MD/JSON
+- Document summary banner - Shows word count and prompts on upload
+- Specific error messages - Detailed, actionable error feedback
+- Scope validation - AI only answers from document content
 
 ### ⚠️ Configuration Required:
 - **Ollama Setup (for AI chat):**
@@ -132,11 +147,12 @@ DocuChat employs a client-server architecture:
 - React 18, Vite (removed Lucide React Icons - using CSS icons instead)
 - Autoprefixer, PostCSS
 
-**Backend (6 Python packages):**
+**Backend (7 Python packages):**
 - fastapi - Web framework
 - uvicorn - ASGI server
 - python-multipart - File upload handling
 - pymupdf - PDF text extraction
+- python-docx - DOCX text extraction
 - httpx - HTTP client (for Ollama integration)
 - fpdf2 - PDF generation (for exports)
 
@@ -147,17 +163,19 @@ DocuChat employs a client-server architecture:
 
 ## Key Improvements Made
 
-1. **Fixed Large File Uploads:** Chunked reading prevents failures for files > 2MB (up to 10MB supported)
-2. **Consistent Branding:** All references now use "DocuChat" naming across the entire application
-3. **Natural Loading Animation:** Smooth bouncing dots replace simple pulse animation for better UX
-4. **Unified Export System:** All export formats include both document summary and conversation history
-5. **Single Export Button:** Replaced 4 buttons with 1 unified button + modal for better UX
-6. **Document Summary on Upload:** Users immediately see word count and are prompted to ask questions
-7. **Specific Error Messages:** Detailed error feedback instead of generic messages
-8. **Scope Validation:** AI strictly answers only from document content, no out-of-scope responses
-9. **No Hardcoded Models:** Backend no longer defaults to 'llama2', preventing 404 errors
-10. **Dynamic Model Detection:** UI automatically detects and displays installed Ollama models
-11. **Local-First Design:** No Replit-specific code, runs perfectly on local systems
+1. **Real-Time Progress Tracking:** Visual progress bar with 5-stage updates and SSE streaming (no polling!)
+2. **DOCX Support:** Added modern Word document support alongside PDF and TXT
+3. **Fixed Large File Uploads:** Chunked reading prevents failures for files > 2MB (up to 10MB supported)
+4. **Consistent Branding:** All references now use "DocuChat" naming across the entire application
+5. **Natural Loading Animation:** Smooth bouncing dots replace simple pulse animation for better UX
+6. **Unified Export System:** All export formats include both document summary and conversation history
+7. **Single Export Button:** Replaced 4 buttons with 1 unified button + modal for better UX
+8. **Document Summary on Upload:** Users immediately see word count and are prompted to ask questions
+9. **Specific Error Messages:** Detailed error feedback instead of generic messages
+10. **Scope Validation:** AI strictly answers only from document content, no out-of-scope responses
+11. **No Hardcoded Models:** Backend no longer defaults to 'llama2', preventing 404 errors
+12. **Dynamic Model Detection:** UI automatically detects and displays installed Ollama models
+13. **Local-First Design:** No Replit-specific code, runs perfectly on local systems
 
 ## Troubleshooting
 
@@ -178,10 +196,11 @@ DocuChat employs a client-server architecture:
 The basic app is ready for both Replit and local development! 
 
 **To use:**
-1. Upload PDF and TXT files
+1. Upload PDF, TXT, or DOCX files (10MB max)
 2. View extracted text from documents
 3. (Optional) Configure Ollama and select a model for AI chat
-4. Export conversations as needed
+4. Watch real-time progress as summaries are generated
+5. Export conversations as needed
 
 **For local development:**
 - See `README_LOCAL_SETUP.md` for detailed instructions
