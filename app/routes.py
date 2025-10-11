@@ -79,39 +79,67 @@ async def delete_document(document_id: str):
 
 @router.get("/api/documents/{document_id}/summary-status")
 async def stream_summary_status(document_id: str):
-    """Stream summary status updates via SSE - alternative to polling"""
+    """Stream summary status updates via SSE with progress tracking"""
     async def generate():
-        max_checks = 60
-        check_count = 0
+        import time
+        max_duration = 300  # 5 minutes max duration for SSE stream
+        max_idle_time = 30  # 30 seconds without any status change triggers idle timeout
+        start_time = time.time()
+        last_update_time = start_time
+        last_progress = -1
         last_status = None
         
-        while check_count < max_checks:
+        while True:
             try:
+                current_time = time.time()
+                elapsed = current_time - start_time
+                idle_time = current_time - last_update_time
+                
+                # Check max duration timeout
+                if elapsed > max_duration:
+                    yield f'data: {json.dumps({"type": "timeout", "message": "Maximum duration exceeded", "last_progress": last_progress})}\n\n'
+                    break
+                
+                # Check idle timeout (no updates for too long)
+                if idle_time > max_idle_time and last_status == "generating":
+                    yield f'data: {json.dumps({"type": "timeout", "message": "No updates received", "last_progress": last_progress})}\n\n'
+                    break
+                
                 document = FileStorage.get_document(document_id)
                 if not document:
                     yield f'data: {json.dumps({"type": "error", "message": "Document not found"})}\n\n'
                     break
                 
-                current_status = document.get("summary_status", "none")
+                # Normalize status: None -> "none" for proper comparison
+                current_status = document.get("summary_status") or "none"
+                current_progress = document.get("summary_progress", 0)
+                current_message = document.get("summary_message") or ""
                 
-                if current_status != last_status:
-                    yield f'data: {json.dumps({"type": "status", "status": current_status, "summary": document.get("summary", "")})}\n\n'
+                # Send update if status or progress changed
+                if current_status != last_status or current_progress != last_progress:
+                    progress_data = {
+                        "type": "progress",
+                        "status": current_status,
+                        "progress": current_progress,
+                        "message": current_message,
+                        "summary": document.get("summary", "")
+                    }
+                    yield f'data: {json.dumps(progress_data)}\n\n'
                     last_status = current_status
+                    last_progress = current_progress
+                    last_update_time = current_time  # Reset idle timer on update
                 
+                # Exit on terminal states
                 if current_status in ["completed", "failed", "none"]:
                     yield f'data: {json.dumps({"type": "done"})}\n\n'
                     break
                 
-                await asyncio.sleep(1)
-                check_count += 1
+                await asyncio.sleep(0.3)  # Check more frequently for smoother progress updates
                 
             except Exception as e:
                 print(f"[SSE ERROR] Summary status stream error: {e}")
                 yield f'data: {json.dumps({"type": "error", "message": str(e)})}\n\n'
                 break
-        
-        if check_count >= max_checks:
-            yield f'data: {json.dumps({"type": "timeout", "message": "Summary generation timeout"})}\n\n'
     
     return StreamingResponse(
         generate(),
@@ -205,21 +233,65 @@ SUMMARY:"""
     return ""
 
 async def generate_summary_background(document_id: str, content: str, model: str):
-    """Generate summary in the background and update document"""
+    """Generate summary in the background and update document with progress"""
     try:
         print(f"[BACKGROUND] Starting summary generation for document {document_id}")
+        
+        # Step 1: Initialize (10%)
+        FileStorage.update_document(document_id, {
+            "summary_progress": 10,
+            "summary_message": "Preparing document..."
+        })
+        await asyncio.sleep(0.1)
+        
+        # Step 2: Analyzing content (30%)
+        FileStorage.update_document(document_id, {
+            "summary_progress": 30,
+            "summary_message": "Analyzing document content..."
+        })
+        await asyncio.sleep(0.1)
+        
+        # Step 3: Calling Ollama (50%)
+        FileStorage.update_document(document_id, {
+            "summary_progress": 50,
+            "summary_message": f"Generating summary with {model}..."
+        })
+        
+        # Generate the actual summary
         summary = await generate_document_summary(content, model)
+        
         if summary:
+            # Step 4: Finalizing (90%)
+            FileStorage.update_document(document_id, {
+                "summary_progress": 90,
+                "summary_message": "Finalizing summary..."
+            })
+            await asyncio.sleep(0.1)
+            
+            # Step 5: Complete (100%)
             print(f"[BACKGROUND] Summary completed for document {document_id}")
-            FileStorage.update_document(document_id, {"summary": summary, "summary_status": "completed"})
+            FileStorage.update_document(document_id, {
+                "summary": summary, 
+                "summary_status": "completed",
+                "summary_progress": 100,
+                "summary_message": "Summary complete"
+            })
         else:
             print(f"[BACKGROUND] Summary generation returned empty for document {document_id}")
-            FileStorage.update_document(document_id, {"summary_status": "failed"})
+            FileStorage.update_document(document_id, {
+                "summary_status": "failed",
+                "summary_progress": 0,
+                "summary_message": "Failed to generate summary"
+            })
     except Exception as e:
         print(f"[BACKGROUND ERROR] Summary generation failed for document {document_id}: {e}")
         import traceback
         traceback.print_exc()
-        FileStorage.update_document(document_id, {"summary_status": "failed"})
+        FileStorage.update_document(document_id, {
+            "summary_status": "failed",
+            "summary_progress": 0,
+            "summary_message": f"Error: {str(e)}"
+        })
 
 @router.post("/api/documents/upload")
 async def upload_document(file: UploadFile = File(...), model: Optional[str] = None):

@@ -15,6 +15,8 @@ export default function ChatInterface({ document: currentDocument, selectedModel
   const [showDocSummary, setShowDocSummary] = useState(false);
   const [error, setError] = useState(null);
   const [summaryStatus, setSummaryStatus] = useState(null);
+  const [summaryProgress, setSummaryProgress] = useState(0);
+  const [summaryMessage, setSummaryMessage] = useState('');
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const summaryPollInterval = useRef(null);
@@ -74,14 +76,18 @@ export default function ChatInterface({ document: currentDocument, selectedModel
       try {
         const data = JSON.parse(event.data);
         
-        if (data.type === 'status') {
+        if (data.type === 'progress') {
           setSummaryStatus(data.status);
+          setSummaryProgress(data.progress || 0);
+          setSummaryMessage(data.message || '');
           
           // Update parent component with the latest status
           if (onDocumentUpdate) {
             onDocumentUpdate({
               ...currentDocument,
               summary_status: data.status,
+              summary_progress: data.progress,
+              summary_message: data.message,
               summary: data.summary
             });
           }
@@ -531,18 +537,44 @@ export default function ChatInterface({ document: currentDocument, selectedModel
             <h3 style={{ marginTop: 0, marginBottom: '8px', color: '#1e40af' }}>Document Loaded</h3>
             {summaryStatus === 'generating' ? (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', color: '#1e40af' }}>
-                  <div className="spinner" style={{ 
-                    width: '16px', 
-                    height: '16px', 
-                    border: '2px solid #e0e7ff',
-                    borderTop: '2px solid #3b82f6',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite',
-                    marginRight: '8px'
-                  }}></div>
-                  <span>Generating AI summary...</span>
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', color: '#1e40af' }}>
+                      <div className="spinner" style={{ 
+                        width: '16px', 
+                        height: '16px', 
+                        border: '2px solid #e0e7ff',
+                        borderTop: '2px solid #3b82f6',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        marginRight: '8px'
+                      }}></div>
+                      <span>{summaryMessage || 'Generating AI summary...'}</span>
+                    </div>
+                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#3b82f6' }}>
+                      {summaryProgress}%
+                    </span>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div style={{
+                    width: '100%',
+                    height: '8px',
+                    backgroundColor: '#e0e7ff',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    marginBottom: '8px'
+                  }}>
+                    <div style={{
+                      width: `${summaryProgress}%`,
+                      height: '100%',
+                      backgroundColor: '#3b82f6',
+                      transition: 'width 0.3s ease',
+                      borderRadius: '4px'
+                    }}></div>
+                  </div>
                 </div>
+                
                 <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>
                   This document contains <strong>{currentDocument.content ? currentDocument.content.split(' ').length : 0} words</strong>. 
                   Summary will appear here shortly.

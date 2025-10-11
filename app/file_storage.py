@@ -41,6 +41,8 @@ class FileStorage:
             "content": content,
             "summary": None,
             "summary_status": None,
+            "summary_progress": 0,
+            "summary_message": None,
             "brief_summary": None,
             "key_points": [],
             "tags": [],
