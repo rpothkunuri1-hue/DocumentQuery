@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse, Response
 from app.file_storage import FileStorage
-from app.document_parser import extract_text_from_pdf, extract_text_from_txt
+from app.document_parser import extract_text_from_pdf, extract_text_from_txt, extract_text_from_docx
 from typing import List, Optional, AsyncIterator
 from pydantic import BaseModel
 import os
@@ -10,6 +10,7 @@ import json
 import re
 from fpdf import FPDF
 import io as python_io
+import asyncio
 
 router = APIRouter()
 
@@ -76,65 +77,132 @@ async def delete_document(document_id: str):
         raise HTTPException(status_code=404, detail="Document not found")
     return {"success": True}
 
-async def generate_document_summary(content: str, model_name: str) -> str:
-    """Generate a summary of the document using Ollama"""
-    try:
-        # Limit content for summary (first 2000 characters to avoid token limits)
-        truncated_content = content[:2000] if len(content) > 2000 else content
+@router.get("/api/documents/{document_id}/summary-status")
+async def stream_summary_status(document_id: str):
+    """Stream summary status updates via SSE - alternative to polling"""
+    async def generate():
+        max_checks = 60
+        check_count = 0
+        last_status = None
         
-        prompt = f"""Please provide a concise summary of the following document in 2-3 sentences. Focus on the main topics, key points, and overall purpose of the document.
+        while check_count < max_checks:
+            try:
+                document = FileStorage.get_document(document_id)
+                if not document:
+                    yield f'data: {json.dumps({"type": "error", "message": "Document not found"})}\n\n'
+                    break
+                
+                current_status = document.get("summary_status", "none")
+                
+                if current_status != last_status:
+                    yield f'data: {json.dumps({"type": "status", "status": current_status, "summary": document.get("summary", "")})}\n\n'
+                    last_status = current_status
+                
+                if current_status in ["completed", "failed", "none"]:
+                    yield f'data: {json.dumps({"type": "done"})}\n\n'
+                    break
+                
+                await asyncio.sleep(1)
+                check_count += 1
+                
+            except Exception as e:
+                print(f"[SSE ERROR] Summary status stream error: {e}")
+                yield f'data: {json.dumps({"type": "error", "message": str(e)})}\n\n'
+                break
+        
+        if check_count >= max_checks:
+            yield f'data: {json.dumps({"type": "timeout", "message": "Summary generation timeout"})}\n\n'
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+async def generate_document_summary(content: str, model_name: str, max_retries: int = 3) -> str:
+    """Generate a summary of the document using Ollama with retry logic"""
+    
+    # Limit content for summary (first 2000 characters to avoid token limits)
+    truncated_content = content[:2000] if len(content) > 2000 else content
+    
+    prompt = f"""Please provide a concise summary of the following document in 2-3 sentences. Focus on the main topics, key points, and overall purpose of the document.
 
 DOCUMENT CONTENT:
 {truncated_content}
 
 SUMMARY:"""
 
-        print(f"[SUMMARY] Requesting summary for model '{model_name}' (content length: {len(truncated_content)} chars)")
-        
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(
-                f"{OLLAMA_BASE_URL}/api/generate",
-                json={"model": model_name, "prompt": prompt, "stream": False}
-            )
+    for attempt in range(max_retries):
+        try:
+            print(f"[SUMMARY] Attempt {attempt + 1}/{max_retries} - Requesting summary for model '{model_name}' (content length: {len(truncated_content)} chars)")
             
-            print(f"[SUMMARY] Ollama response status: {response.status_code}")
-            
-            if response.status_code == 200:
-                data = response.json()
-                summary = data.get("response", "").strip()
-                print(f"[SUMMARY] Successfully generated summary ({len(summary)} chars)")
-                return summary
-            elif response.status_code == 404:
-                error_detail = response.text
-                print(f"[SUMMARY ERROR] Model '{model_name}' not found in Ollama: {error_detail}")
-                return ""
-            elif response.status_code == 500:
-                error_text = response.text
-                print(f"[SUMMARY ERROR] Ollama server error (500):")
-                print(f"  Model: {model_name}")
-                print(f"  URL: {OLLAMA_BASE_URL}/api/generate")
-                print(f"  Content length: {len(truncated_content)} chars")
-                print(f"  Response body: {error_text}")
-                try:
-                    error_json = response.json()
-                    print(f"  Parsed error: {error_json}")
-                except:
-                    pass
-                return ""
-            else:
-                print(f"[SUMMARY ERROR] Ollama API returned status {response.status_code}: {response.text}")
-                return ""
-    except httpx.ConnectError as e:
-        print(f"[SUMMARY ERROR] Cannot connect to Ollama at {OLLAMA_BASE_URL}: {e}")
-        return ""
-    except httpx.ReadTimeout as e:
-        print(f"[SUMMARY ERROR] Ollama request timed out after 120s: {e}")
-        return ""
-    except Exception as e:
-        print(f"[SUMMARY ERROR] Failed to generate summary: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
-        return ""
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(
+                    f"{OLLAMA_BASE_URL}/api/generate",
+                    json={"model": model_name, "prompt": prompt, "stream": False}
+                )
+                
+                print(f"[SUMMARY] Ollama response status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    summary = data.get("response", "").strip()
+                    print(f"[SUMMARY] Successfully generated summary ({len(summary)} chars)")
+                    return summary
+                elif response.status_code == 404:
+                    error_detail = response.text
+                    print(f"[SUMMARY ERROR] Model '{model_name}' not found in Ollama: {error_detail}")
+                    return ""
+                elif response.status_code == 500:
+                    error_text = response.text
+                    print(f"[SUMMARY ERROR] Ollama server error (500) - Attempt {attempt + 1}/{max_retries}:")
+                    print(f"  Model: {model_name}")
+                    print(f"  URL: {OLLAMA_BASE_URL}/api/generate")
+                    print(f"  Content length: {len(truncated_content)} chars")
+                    print(f"  Response body: {error_text}")
+                    
+                    if attempt < max_retries - 1:
+                        wait_time = 2 ** attempt
+                        print(f"  Retrying in {wait_time} seconds...")
+                        await asyncio.sleep(wait_time)
+                        continue
+                    return ""
+                else:
+                    print(f"[SUMMARY ERROR] Ollama API returned status {response.status_code}: {response.text}")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(2 ** attempt)
+                        continue
+                    return ""
+                    
+        except httpx.ConnectError as e:
+            print(f"[SUMMARY ERROR] Cannot connect to Ollama at {OLLAMA_BASE_URL}: {e}")
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt
+                print(f"  Retrying in {wait_time} seconds...")
+                await asyncio.sleep(wait_time)
+                continue
+            return ""
+        except httpx.ReadTimeout as e:
+            print(f"[SUMMARY ERROR] Ollama request timed out after 120s: {e}")
+            if attempt < max_retries - 1:
+                print(f"  Retrying...")
+                await asyncio.sleep(2)
+                continue
+            return ""
+        except Exception as e:
+            print(f"[SUMMARY ERROR] Failed to generate summary: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2)
+                continue
+            return ""
+    
+    return ""
 
 async def generate_summary_background(document_id: str, content: str, model: str):
     """Generate summary in the background and update document"""
@@ -178,15 +246,17 @@ async def upload_document(file: UploadFile = File(...), model: Optional[str] = N
         extension = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
         mimetype = file.content_type or ''
         
-        # Extract text based on file type (PDF and TXT only)
+        # Extract text based on file type
         content = ""
         
         if mimetype == "application/pdf" or extension == "pdf":
             content = await extract_text_from_pdf(content_bytes)
         elif mimetype == "text/plain" or extension == "txt":
             content = await extract_text_from_txt(content_bytes)
+        elif mimetype == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or extension == "docx":
+            content = await extract_text_from_docx(content_bytes)
         else:
-            raise HTTPException(status_code=400, detail="Unsupported file type. Only PDF and TXT files are supported.")
+            raise HTTPException(status_code=400, detail=f"Unsupported file type. Supported formats: PDF, TXT, DOCX (received: {extension or mimetype}). Note: Old .doc format is not supported, please convert to .docx")
         
         # Create document in file storage
         document = FileStorage.create_document(
@@ -199,9 +269,10 @@ async def upload_document(file: UploadFile = File(...), model: Optional[str] = N
         # Mark summary as generating if model is provided
         if model and content and len(content.strip()) >= 50:
             document = FileStorage.update_document(document["id"], {"summary_status": "generating"})
-            # Generate summary in background
-            import asyncio
+            # Generate summary in background using asyncio
             asyncio.create_task(generate_summary_background(document["id"], content, model))
+        elif model and (not content or len(content.strip()) < 50):
+            print(f"[UPLOAD] Document content too short for summary (length: {len(content.strip()) if content else 0})")
         
         return document
     

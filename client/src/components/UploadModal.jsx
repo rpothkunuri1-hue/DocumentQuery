@@ -27,12 +27,13 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
     const validTypes = [
       'application/pdf',
       'text/plain',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     ];
     
-    const validExtensions = ['pdf', 'txt'];
+    const validExtensions = ['pdf', 'txt', 'docx'];
 
     if (!validTypes.includes(selectedFile.type) && !validExtensions.includes(extension)) {
-      alert('Unsupported file type. Only PDF and TXT files are supported.');
+      alert('Unsupported file type. Supported formats: PDF, TXT, DOCX. Note: Old .doc format is not supported, please convert to .docx');
       return;
     }
 
@@ -138,12 +139,12 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
             <div className="upload-icon">⬆</div>
             <p className="dropzone-text">Drop your document here</p>
             <p className="dropzone-subtext">or click to browse</p>
-            <p className="dropzone-info">Supports PDF and TXT files only (max 10MB)</p>
+            <p className="dropzone-info">Supports PDF, TXT, and DOCX files (max 10MB)</p>
             <input
               id="file-input"
               type="file"
               onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-              accept=".pdf,.txt"
+              accept=".pdf,.txt,.docx"
               style={{ display: 'none' }}
             />
           </div>

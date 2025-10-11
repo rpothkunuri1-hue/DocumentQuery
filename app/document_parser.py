@@ -1,4 +1,6 @@
 import pymupdf
+from docx import Document
+import io
 
 async def extract_text_from_pdf(buffer: bytes) -> str:
     """Extract text from PDF file using pymupdf"""
@@ -19,3 +21,16 @@ async def extract_text_from_txt(buffer: bytes) -> str:
         return buffer.decode("utf-8").strip()
     except Exception as e:
         raise Exception(f"Failed to extract text from TXT: {str(e)}")
+
+
+async def extract_text_from_docx(buffer: bytes) -> str:
+    """Extract text from DOCX file using python-docx"""
+    try:
+        doc = Document(io.BytesIO(buffer))
+        text = []
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():
+                text.append(paragraph.text)
+        return "\n".join(text).strip()
+    except Exception as e:
+        raise Exception(f"Failed to extract text from DOCX: {str(e)}")

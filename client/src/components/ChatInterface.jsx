@@ -25,20 +25,28 @@ export default function ChatInterface({ document: currentDocument, selectedModel
     setError(null);
     setSummaryStatus(currentDocument.summary_status || null);
     
-    // Clean up any existing polling interval first
+    // Clean up any existing SSE connection first
     if (summaryPollInterval.current) {
-      clearInterval(summaryPollInterval.current);
+      if (summaryPollInterval.current instanceof EventSource) {
+        summaryPollInterval.current.close();
+      } else {
+        clearInterval(summaryPollInterval.current);
+      }
       summaryPollInterval.current = null;
     }
     
-    // Start polling only if summary is generating
+    // Start SSE connection only if summary is generating
     if (currentDocument.summary_status === 'generating') {
       startSummaryPolling();
     }
     
     return () => {
       if (summaryPollInterval.current) {
-        clearInterval(summaryPollInterval.current);
+        if (summaryPollInterval.current instanceof EventSource) {
+          summaryPollInterval.current.close();
+        } else {
+          clearInterval(summaryPollInterval.current);
+        }
         summaryPollInterval.current = null;
       }
     };
@@ -49,35 +57,49 @@ export default function ChatInterface({ document: currentDocument, selectedModel
   }, [messages]);
 
   const startSummaryPolling = () => {
-    // Clear any existing interval first
+    // Clear any existing connection first
     if (summaryPollInterval.current) {
-      clearInterval(summaryPollInterval.current);
+      if (summaryPollInterval.current instanceof EventSource) {
+        summaryPollInterval.current.close();
+      } else {
+        clearInterval(summaryPollInterval.current);
+      }
       summaryPollInterval.current = null;
     }
     
-    summaryPollInterval.current = setInterval(async () => {
+    // Use SSE for real-time updates instead of polling
+    const eventSource = new EventSource(`/api/documents/${currentDocument.id}/summary-status`);
+    
+    eventSource.onmessage = (event) => {
       try {
-        const response = await fetch(`/api/documents/${currentDocument.id}`);
-        if (response.ok) {
-          const doc = await response.json();
-          // Update parent component with the latest document data
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'status') {
+          setSummaryStatus(data.status);
+          
+          // Update parent component with the latest status
           if (onDocumentUpdate) {
-            onDocumentUpdate(doc);
+            onDocumentUpdate({
+              ...currentDocument,
+              summary_status: data.status,
+              summary: data.summary
+            });
           }
-          // Stop polling when status changes from 'generating'
-          if (doc.summary_status !== 'generating') {
-            setSummaryStatus(doc.summary_status);
-            clearInterval(summaryPollInterval.current);
-            summaryPollInterval.current = null;
-          }
+        } else if (data.type === 'done' || data.type === 'error' || data.type === 'timeout') {
+          eventSource.close();
         }
       } catch (error) {
-        console.error('Failed to poll summary:', error);
-        // Stop polling on error to prevent infinite failed requests
-        clearInterval(summaryPollInterval.current);
-        summaryPollInterval.current = null;
+        console.error('Failed to parse summary status:', error);
       }
-    }, 2000);
+    };
+    
+    eventSource.onerror = (error) => {
+      console.error('SSE error:', error);
+      eventSource.close();
+    };
+    
+    // Store reference for cleanup
+    summaryPollInterval.current = eventSource;
   };
 
   const loadConversation = async () => {
