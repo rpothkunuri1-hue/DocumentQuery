@@ -17,9 +17,12 @@ export default function ChatInterface({ document: currentDocument, selectedModel
   const [summaryStatus, setSummaryStatus] = useState(null);
   const [summaryProgress, setSummaryProgress] = useState(0);
   const [summaryMessage, setSummaryMessage] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState('disconnected'); // 'connected', 'connecting', 'disconnected'
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const summaryPollInterval = useRef(null);
+  const reconnectAttempts = useRef(0);
+  const maxReconnectAttempts = 3;
 
   useEffect(() => {
     loadConversation();
@@ -69,8 +72,15 @@ export default function ChatInterface({ document: currentDocument, selectedModel
       summaryPollInterval.current = null;
     }
     
+    setConnectionStatus('connecting');
+    
     // Use SSE for real-time updates instead of polling
     const eventSource = new EventSource(`/api/documents/${currentDocument.id}/summary-status`);
+    
+    eventSource.onopen = () => {
+      setConnectionStatus('connected');
+      reconnectAttempts.current = 0;
+    };
     
     eventSource.onmessage = (event) => {
       try {
@@ -91,7 +101,12 @@ export default function ChatInterface({ document: currentDocument, selectedModel
               summary: data.summary
             });
           }
-        } else if (data.type === 'done' || data.type === 'error' || data.type === 'timeout') {
+        } else if (data.type === 'done') {
+          setConnectionStatus('disconnected');
+          eventSource.close();
+        } else if (data.type === 'error' || data.type === 'timeout') {
+          setConnectionStatus('disconnected');
+          setError(data.message || 'Connection error');
           eventSource.close();
         }
       } catch (error) {
@@ -100,8 +115,22 @@ export default function ChatInterface({ document: currentDocument, selectedModel
     };
     
     eventSource.onerror = (error) => {
-      console.error('SSE error:', error);
+      console.error('SSE connection error:', error);
+      setConnectionStatus('disconnected');
       eventSource.close();
+      
+      // Auto-reconnect logic with exponential backoff
+      if (reconnectAttempts.current < maxReconnectAttempts && summaryStatus === 'generating') {
+        reconnectAttempts.current += 1;
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 10000);
+        console.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttempts.current}/${maxReconnectAttempts})`);
+        
+        setTimeout(() => {
+          if (summaryStatus === 'generating') {
+            startSummaryPolling();
+          }
+        }, delay);
+      }
     };
     
     // Store reference for cleanup
@@ -550,6 +579,34 @@ export default function ChatInterface({ document: currentDocument, selectedModel
                         marginRight: '8px'
                       }}></div>
                       <span>{summaryMessage || 'Generating AI summary...'}</span>
+                      {connectionStatus === 'connected' && (
+                        <span style={{
+                          marginLeft: '8px',
+                          fontSize: '10px',
+                          color: '#10b981',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <span style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            backgroundColor: '#10b981',
+                            marginRight: '4px',
+                            animation: 'pulse 2s ease-in-out infinite'
+                          }}></span>
+                          Live
+                        </span>
+                      )}
+                      {connectionStatus === 'connecting' && (
+                        <span style={{
+                          marginLeft: '8px',
+                          fontSize: '10px',
+                          color: '#f59e0b'
+                        }}>
+                          Connecting...
+                        </span>
+                      )}
                     </div>
                     <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#3b82f6' }}>
                       {summaryProgress}%
