@@ -16,10 +16,6 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 35355
-externalPort = 9000
-
-[[ports]]
 localPort = 35461
 externalPort = 8099
 
@@ -46,6 +42,10 @@ externalPort = 3002
 [[ports]]
 localPort = 41287
 externalPort = 8080
+
+[[ports]]
+localPort = 41573
+externalPort = 9000
 
 [[ports]]
 localPort = 41595
@@ -92,19 +92,19 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Start application"
+args = "Server"
 
 [[workflows.workflow]]
-name = "Start application"
+name = "Server"
 author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=5000 python main.py"
+args = "python main.py"
 waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [agent]
 expertMode = true
