@@ -344,10 +344,12 @@ async def upload_document(file: UploadFile = File(...), model: Optional[str] = N
         )
         
         # Mark summary as generating if model is provided
-        if model and content and len(content.strip()) >= 50:
-            document = FileStorage.update_document(document["id"], {"summary_status": "generating"})
-            # Generate summary in background using asyncio
-            asyncio.create_task(generate_summary_background(document["id"], content, model))
+        if model and content and len(content.strip()) >= 50 and document:
+            updated_doc = FileStorage.update_document(document["id"], {"summary_status": "generating"})
+            if updated_doc:
+                document = updated_doc
+                # Generate summary in background using asyncio
+                asyncio.create_task(generate_summary_background(document["id"], content, model))
         elif model and (not content or len(content.strip()) < 50):
             print(f"[UPLOAD] Document content too short for summary (length: {len(content.strip()) if content else 0})")
         
@@ -571,11 +573,15 @@ async def chat(request: ChatRequest):
         # Determine model to use
         if not request.model and not OLLAMA_MODEL:
             raise HTTPException(status_code=400, detail="No model specified. Please select a model from the dropdown.")
-        model_name = request.model or OLLAMA_MODEL
+        model_name = request.model if request.model else OLLAMA_MODEL
+        
+        if not model_name:
+            raise HTTPException(status_code=400, detail="No model specified. Please select a model from the dropdown.")
         
         async def generate():
             # Send message ID first
-            yield f'data: {json.dumps({"type": "message_id", "messageId": assistant_message["id"]})}\n\n'
+            if assistant_message and "id" in assistant_message:
+                yield f'data: {json.dumps({"type": "message_id", "messageId": assistant_message["id"]})}\n\n'
             
             # Stream the response
             async for chunk in stream_chat_response(
@@ -762,11 +768,15 @@ async def multi_chat(request: MultiChatRequest):
         # Determine model to use
         if not request.model and not OLLAMA_MODEL:
             raise HTTPException(status_code=400, detail="No model specified. Please select a model from the dropdown.")
-        model_name = request.model or OLLAMA_MODEL
+        model_name = request.model if request.model else OLLAMA_MODEL
+        
+        if not model_name:
+            raise HTTPException(status_code=400, detail="No model specified. Please select a model from the dropdown.")
         
         async def generate():
             # Send message ID first
-            yield f'data: {json.dumps({"type": "message_id", "messageId": assistant_message["id"]})}\n\n'
+            if assistant_message and "id" in assistant_message:
+                yield f'data: {json.dumps({"type": "message_id", "messageId": assistant_message["id"]})}\n\n'
             
             # Stream the response
             async for chunk in stream_multi_chat_response(
