@@ -79,13 +79,13 @@ async def delete_document(document_id: str):
 
 @router.get("/api/documents/{document_id}/summary-status")
 async def stream_summary_status(document_id: str):
-    """Stream summary status updates via SSE with progress tracking"""
+    """Stream summary status updates via SSE with progress tracking and keep-alive"""
     async def generate():
         import time
         max_duration = 300  # 5 minutes max duration for SSE stream
-        max_idle_time = 30  # 30 seconds without any status change triggers idle timeout
+        keep_alive_interval = 15  # Send keep-alive every 15 seconds
         start_time = time.time()
-        last_update_time = start_time
+        last_keepalive_time = start_time
         last_progress = -1
         last_status = None
         
@@ -93,16 +93,11 @@ async def stream_summary_status(document_id: str):
             try:
                 current_time = time.time()
                 elapsed = current_time - start_time
-                idle_time = current_time - last_update_time
+                time_since_keepalive = current_time - last_keepalive_time
                 
                 # Check max duration timeout
                 if elapsed > max_duration:
                     yield f'data: {json.dumps({"type": "timeout", "message": "Maximum duration exceeded", "last_progress": last_progress})}\n\n'
-                    break
-                
-                # Check idle timeout (no updates for too long)
-                if idle_time > max_idle_time and last_status == "generating":
-                    yield f'data: {json.dumps({"type": "timeout", "message": "No updates received", "last_progress": last_progress})}\n\n'
                     break
                 
                 document = FileStorage.get_document(document_id)
@@ -127,14 +122,18 @@ async def stream_summary_status(document_id: str):
                     yield f'data: {json.dumps(progress_data)}\n\n'
                     last_status = current_status
                     last_progress = current_progress
-                    last_update_time = current_time  # Reset idle timer on update
+                    last_keepalive_time = current_time  # Reset keep-alive timer on update
+                # Send keep-alive heartbeat to prevent connection timeout
+                elif time_since_keepalive >= keep_alive_interval:
+                    yield f': keep-alive\n\n'
+                    last_keepalive_time = current_time
                 
                 # Exit on terminal states
                 if current_status in ["completed", "failed", "none"]:
                     yield f'data: {json.dumps({"type": "done"})}\n\n'
                     break
                 
-                await asyncio.sleep(0.3)  # Check more frequently for smoother progress updates
+                await asyncio.sleep(0.5)  # Check every 0.5 seconds
                 
             except Exception as e:
                 print(f"[SSE ERROR] Summary status stream error: {e}")
@@ -151,8 +150,8 @@ async def stream_summary_status(document_id: str):
         }
     )
 
-async def generate_document_summary(content: str, model_name: str, max_retries: int = 3) -> str:
-    """Generate a summary of the document using Ollama with retry logic"""
+async def generate_document_summary_streaming(content: str, model_name: str, document_id: str, max_retries: int = 3) -> str:
+    """Generate a summary of the document using Ollama with streaming and progress updates"""
     
     # Limit content for summary (first 2000 characters to avoid token limits)
     truncated_content = content[:2000] if len(content) > 2000 else content
@@ -169,42 +168,48 @@ SUMMARY:"""
             print(f"[SUMMARY] Attempt {attempt + 1}/{max_retries} - Requesting summary for model '{model_name}' (content length: {len(truncated_content)} chars)")
             
             async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(
+                summary = ""
+                # Use streaming to provide real-time progress
+                async with client.stream(
+                    "POST",
                     f"{OLLAMA_BASE_URL}/api/generate",
-                    json={"model": model_name, "prompt": prompt, "stream": False}
-                )
-                
-                print(f"[SUMMARY] Ollama response status: {response.status_code}")
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    summary = data.get("response", "").strip()
-                    print(f"[SUMMARY] Successfully generated summary ({len(summary)} chars)")
-                    return summary
-                elif response.status_code == 404:
-                    error_detail = response.text
-                    print(f"[SUMMARY ERROR] Model '{model_name}' not found in Ollama: {error_detail}")
-                    return ""
-                elif response.status_code == 500:
-                    error_text = response.text
-                    print(f"[SUMMARY ERROR] Ollama server error (500) - Attempt {attempt + 1}/{max_retries}:")
-                    print(f"  Model: {model_name}")
-                    print(f"  URL: {OLLAMA_BASE_URL}/api/generate")
-                    print(f"  Content length: {len(truncated_content)} chars")
-                    print(f"  Response body: {error_text}")
+                    json={"model": model_name, "prompt": prompt, "stream": True}
+                ) as response:
                     
-                    if attempt < max_retries - 1:
-                        wait_time = 2 ** attempt
-                        print(f"  Retrying in {wait_time} seconds...")
-                        await asyncio.sleep(wait_time)
-                        continue
-                    return ""
-                else:
-                    print(f"[SUMMARY ERROR] Ollama API returned status {response.status_code}: {response.text}")
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(2 ** attempt)
-                        continue
-                    return ""
+                    if response.status_code == 404:
+                        print(f"[SUMMARY ERROR] Model '{model_name}' not found in Ollama")
+                        return ""
+                    elif response.status_code != 200:
+                        error_text = await response.aread()
+                        print(f"[SUMMARY ERROR] Ollama API returned status {response.status_code}: {error_text.decode()}")
+                        if attempt < max_retries - 1:
+                            await asyncio.sleep(2 ** attempt)
+                            continue
+                        return ""
+                    
+                    # Stream the response and update progress
+                    token_count = 0
+                    async for line in response.aiter_lines():
+                        if line.strip():
+                            try:
+                                data = json.loads(line)
+                                if "response" in data and data["response"]:
+                                    summary += data["response"]
+                                    token_count += 1
+                                    
+                                    # Update progress every 5 tokens (smoother updates)
+                                    if token_count % 5 == 0:
+                                        # Progress from 50% to 85% during generation
+                                        progress = min(50 + (token_count * 35 // 100), 85)
+                                        FileStorage.update_document(document_id, {
+                                            "summary_progress": progress,
+                                            "summary_message": f"Generating summary... ({token_count} tokens)"
+                                        })
+                            except json.JSONDecodeError:
+                                continue
+                    
+                    print(f"[SUMMARY] Successfully generated summary ({len(summary)} chars)")
+                    return summary.strip()
                     
         except httpx.ConnectError as e:
             print(f"[SUMMARY ERROR] Cannot connect to Ollama at {OLLAMA_BASE_URL}: {e}")
@@ -251,14 +256,14 @@ async def generate_summary_background(document_id: str, content: str, model: str
         })
         await asyncio.sleep(0.1)
         
-        # Step 3: Calling Ollama (50%)
+        # Step 3: Calling Ollama with streaming (50% - 85% handled in streaming function)
         FileStorage.update_document(document_id, {
             "summary_progress": 50,
             "summary_message": f"Generating summary with {model}..."
         })
         
-        # Generate the actual summary
-        summary = await generate_document_summary(content, model)
+        # Generate the actual summary with streaming progress updates
+        summary = await generate_document_summary_streaming(content, model, document_id)
         
         if summary:
             # Step 4: Finalizing (90%)
@@ -281,7 +286,7 @@ async def generate_summary_background(document_id: str, content: str, model: str
             FileStorage.update_document(document_id, {
                 "summary_status": "failed",
                 "summary_progress": 0,
-                "summary_message": "Failed to generate summary"
+                "summary_message": "Failed to generate summary. Please check if Ollama is running and the model is available."
             })
     except Exception as e:
         print(f"[BACKGROUND ERROR] Summary generation failed for document {document_id}: {e}")
