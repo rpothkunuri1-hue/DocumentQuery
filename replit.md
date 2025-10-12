@@ -3,12 +3,19 @@
 ## Overview
 DocuChat is a simplified document viewer application that allows users to upload and view PDF, TXT, and DOCX files with optional AI chat features. The project uses a modern tech stack with React for the frontend and FastAPI for the backend.
 
-## Recent Changes (October 11, 2025)
-- **Progress Tracking for Summary Generation (LATEST):** Real-time progress updates with visual feedback
-  - Added 5-stage progress tracking: Preparing (10%), Analyzing (30%), Generating (50%), Finalizing (90%), Complete (100%)
+## Recent Changes (October 12, 2025)
+- **Enhanced SSE Implementation for Real-Time Updates (LATEST):** Eliminated polling bottleneck with improved streaming
+  - **Keep-Alive Heartbeat:** Added 15-second heartbeat to prevent connection timeouts during long Ollama processing
+  - **Streaming Progress During AI Generation:** Ollama summary generation now streams token-by-token with live progress updates (50%-85%)
+  - **Connection Status Indicator:** Visual "Live" indicator shows SSE connection state with green pulsing dot
+  - **Auto-Reconnection Logic:** Exponential backoff retry mechanism (max 3 attempts) for dropped connections
+  - **Smoother Progress Updates:** Progress bar now updates during actual AI generation, not just before/after
+  - **Better Error Handling:** Clear error messages and automatic recovery from temporary connection issues
+- **Progress Tracking for Summary Generation:** Real-time progress updates with visual feedback
+  - Added 5-stage progress tracking: Preparing (10%), Analyzing (30%), Generating (50%-85%), Finalizing (90%), Complete (100%)
   - Implemented Server-Sent Events (SSE) for real-time status streaming
   - Visual progress bar with percentage indicators and descriptive status messages
-  - Smart timeout handling: 5-minute max duration, 30-second idle detection
+  - Smart timeout handling: 5-minute max duration
   - Proper status normalization (None → "none") for accurate terminal state detection
 - **DOCX File Support:** Added support for modern Word documents (.docx)
   - Uses python-docx library for text extraction
