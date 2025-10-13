@@ -11,13 +11,6 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() => 
     typeof window !== 'undefined' ? window.innerWidth > 768 : false
   );
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('theme');
-      return saved || 'light';
-    }
-    return 'light';
-  });
   const [availableModels, setAvailableModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -44,13 +37,6 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      document.documentElement.classList.toggle('dark', theme === 'dark');
-      localStorage.setItem('theme', theme);
-    }
-  }, [theme]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
       localStorage.setItem('ollama-model', selectedModel);
     }
   }, [selectedModel]);
@@ -69,10 +55,6 @@ export default function App() {
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
   }, [showUpload, isUploading]);
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
 
   const loadDocuments = async () => {
     try {
@@ -166,7 +148,7 @@ export default function App() {
             data-testid="button-upload"
           >
             <span className="icon icon-upload"></span>
-            <span>Upload</span>
+            <span>Upload PDF</span>
           </button>
         </div>
       </aside>
@@ -201,14 +183,6 @@ export default function App() {
                 <option value="" disabled>No models found - install Ollama model</option>
               )}
             </select>
-            <button 
-              className="btn-icon" 
-              onClick={toggleTheme} 
-              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-              data-testid="button-theme"
-            >
-              <span className={`icon ${theme === 'light' ? 'icon-moon' : 'icon-sun'}`}></span>
-            </button>
           </div>
         </header>
 
@@ -236,12 +210,11 @@ export default function App() {
             <div className="welcome-content">
               <div className="welcome-icon">💬</div>
               <h2>Welcome to DocuChat</h2>
-              <p>Upload a document to start having intelligent conversations about its content.</p>
+              <p>Upload a PDF document to get an AI-generated summary and start chatting about its content.</p>
               <div className="features">
-                <p>✓ Support for PDF and TXT files</p>
-                <p>✓ Real-time streaming responses with conversation memory</p>
-                <p>✓ Export conversations to PDF, Markdown, or JSON</p>
-                <p>✓ Swipe to delete (mobile) • Edit, regenerate, and rate messages</p>
+                <p>✓ Upload PDF files</p>
+                <p>✓ Get AI-powered summaries</p>
+                <p>✓ Chat with Ollama AI about your documents</p>
               </div>
             </div>
           </div>

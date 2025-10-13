@@ -1,15 +1,13 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from fastapi.responses import StreamingResponse, Response
+from fastapi.responses import StreamingResponse
 from app.file_storage import FileStorage
-from app.document_parser import extract_text_from_pdf, extract_text_from_txt, extract_text_from_docx
+from app.document_parser import extract_text_from_pdf
 from typing import List, Optional, AsyncIterator
 from pydantic import BaseModel
 import os
 import httpx
 import json
 import re
-from fpdf import FPDF
-import io as python_io
 import asyncio
 
 router = APIRouter()
@@ -323,17 +321,12 @@ async def upload_document(file: UploadFile = File(...), model: Optional[str] = N
         extension = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
         mimetype = file.content_type or ''
         
-        # Extract text based on file type
-        content = ""
+        # Only support PDF files
+        if mimetype != "application/pdf" and extension != "pdf":
+            raise HTTPException(status_code=400, detail=f"Only PDF files are supported. Please upload a PDF document.")
         
-        if mimetype == "application/pdf" or extension == "pdf":
-            content = await extract_text_from_pdf(content_bytes)
-        elif mimetype == "text/plain" or extension == "txt":
-            content = await extract_text_from_txt(content_bytes)
-        elif mimetype == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or extension == "docx":
-            content = await extract_text_from_docx(content_bytes)
-        else:
-            raise HTTPException(status_code=400, detail=f"Unsupported file type. Supported formats: PDF, TXT, DOCX (received: {extension or mimetype}). Note: Old .doc format is not supported, please convert to .docx")
+        # Extract text from PDF
+        content = await extract_text_from_pdf(content_bytes)
         
         # Create document in file storage
         document = FileStorage.create_document(
@@ -799,13 +792,6 @@ async def multi_chat(request: MultiChatRequest):
     except Exception as e:
         print(f"Multi-chat error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process multi-chat: {str(e)}")
-
-# ==================== EXPORT ENDPOINTS ====================
-
-class ExportRequest(BaseModel):
-    format: str
-
-@router.post("/api/documents/{document_id}/export")
 async def export_unified(document_id: str, request: ExportRequest):
     """Unified export endpoint for document summary and conversations"""
     try:

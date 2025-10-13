@@ -24,16 +24,8 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
   const handleFileSelect = async (selectedFile) => {
     const extension = selectedFile.name.split('.').pop()?.toLowerCase() || '';
     
-    const validTypes = [
-      'application/pdf',
-      'text/plain',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    ];
-    
-    const validExtensions = ['pdf', 'txt', 'docx'];
-
-    if (!validTypes.includes(selectedFile.type) && !validExtensions.includes(extension)) {
-      alert('Unsupported file type. Supported formats: PDF, TXT, DOCX. Note: Old .doc format is not supported, please convert to .docx');
+    if (selectedFile.type !== 'application/pdf' && extension !== 'pdf') {
+      alert('Only PDF files are supported. Please upload a PDF document.');
       return;
     }
 
@@ -124,7 +116,7 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
     <div className="modal" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Upload Document</h2>
+          <h2>Upload PDF Document</h2>
           <button className="btn-icon" onClick={uploading ? handleCancel : onClose}>✕</button>
         </div>
 
@@ -136,15 +128,15 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
             onDrop={handleDrop}
             onClick={() => document.getElementById('file-input')?.click()}
           >
-            <div className="upload-icon">⬆</div>
-            <p className="dropzone-text">Drop your document here</p>
+            <div className="upload-icon">📄</div>
+            <p className="dropzone-text">Drop your PDF here</p>
             <p className="dropzone-subtext">or click to browse</p>
-            <p className="dropzone-info">Supports PDF, TXT, and DOCX files (max 10MB)</p>
+            <p className="dropzone-info">PDF files only (max 10MB)</p>
             <input
               id="file-input"
               type="file"
               onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-              accept=".pdf,.txt,.docx"
+              accept=".pdf,application/pdf"
               style={{ display: 'none' }}
             />
           </div>
@@ -158,7 +150,7 @@ export default function UploadModal({ onUploadComplete, onClose, onUploadingChan
             <div className="progress-bar">
               <div className="progress-fill" style={{ width: `${progress}%` }} />
             </div>
-            <p className="upload-status">Processing document...</p>
+            <p className="upload-status">Processing PDF and generating summary...</p>
             <button className="btn btn-outline" onClick={handleCancel}>
               Cancel Upload
             </button>
