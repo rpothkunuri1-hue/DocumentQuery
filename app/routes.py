@@ -440,19 +440,37 @@ async def stream_chat_response(
             yield f'data: {json.dumps({"type": "done"})}\n\n'
             return
         
+        # Check for greetings
+        greeting_patterns = ['hi', 'hey', 'hello', 'greetings', 'howdy', 'sup', 'hiya']
+        question_lower = question.strip().lower()
+        is_greeting = any(question_lower == pattern or question_lower == pattern + '!' for pattern in greeting_patterns)
+        
+        if is_greeting:
+            greeting_response = "What can I tell you about the document?"
+            FileStorage.update_last_message(conversation_id, greeting_response)
+            yield f'data: {json.dumps({"type": "token", "content": greeting_response})}\n\n'
+            yield f'data: {json.dumps({"type": "done"})}\n\n'
+            return
+        
         # Build the prompt with strict instructions
         context_history = "\n".join([f"{msg['role']}: {msg['content']}" for msg in context_messages])
+        
+        # Extract document name and create suggestions
+        doc_name = document.get("name", "this document")
+        doc_content_preview = document["content"][:200].strip()
         
         prompt = f"""SYSTEM INSTRUCTIONS:
 You are a document analysis assistant. Your ONLY role is to answer questions based strictly on the content of the provided document.
 
 STRICT RULES:
 1. ONLY answer questions that can be answered using information found in the document below
-2. If a question cannot be answered from the document, politely decline and explain that the information is not in the document
+2. If a question is out of scope (not related to document content), politely redirect the user to ask about the document and provide 2-3 relevant example questions based on the document content
 3. ALWAYS cite specific passages or sections from the document when answering
 4. DO NOT use external knowledge, general facts, or information not present in the document
-5. If the question is unclear or ambiguous, ask the user to clarify before attempting to answer
+5. If the question is unclear or ambiguous, ask the user to clarify
 6. If multiple interpretations are possible based on the document, present all relevant perspectives found in the document
+
+DOCUMENT NAME: {doc_name}
 
 DOCUMENT CONTENT:
 {document["content"]}
@@ -463,10 +481,9 @@ CONVERSATION HISTORY:
 USER QUESTION: {question}
 
 RESPONSE INSTRUCTIONS:
-- Answer ONLY using information from the document above
-- Quote or reference specific parts of the document in your response
-- If the answer is not in the document, respond with: "I cannot answer this question because the information is not present in the provided document. Please ask a question about the document's content."
-- Be helpful and thorough, but stay within the document's scope"""
+- If the question IS about the document: Answer using ONLY information from the document and cite specific passages
+- If the question is NOT about the document or out of scope: Respond with "I can only answer questions about {doc_name}. Here are some questions you could ask:" followed by 2-3 relevant example questions based on the document's actual content
+- Be precise, helpful, and stay within the document's scope"""
 
         # Call Ollama API with streaming
         async with httpx.AsyncClient(timeout=120.0) as client:
@@ -629,6 +646,19 @@ async def stream_multi_chat_response(
             yield f'data: {json.dumps({"type": "done"})}\n\n'
             return
         
+        # Check for greetings
+        greeting_patterns = ['hi', 'hey', 'hello', 'greetings', 'howdy', 'sup', 'hiya']
+        question_lower = question.strip().lower()
+        is_greeting = any(question_lower == pattern or question_lower == pattern + '!' for pattern in greeting_patterns)
+        
+        if is_greeting:
+            doc_names = ", ".join([f'"{doc["name"]}"' for doc in valid_content_documents])
+            greeting_response = f"What can I tell you about these documents: {doc_names}?"
+            FileStorage.update_last_message(conversation_id, greeting_response)
+            yield f'data: {json.dumps({"type": "token", "content": greeting_response})}\n\n'
+            yield f'data: {json.dumps({"type": "done"})}\n\n'
+            return
+        
         # Warn if some documents were excluded
         warning_prefix = ""
         if len(excluded_docs) > 0:
@@ -657,9 +687,9 @@ You are a multi-document analysis assistant. Your ONLY role is to answer questio
 STRICT RULES:
 1. ONLY answer questions using information found in the documents below
 2. ALWAYS specify which document(s) you're referencing (use document numbers and names)
-3. When comparing documents, only compare information that is actually present in the documents
-4. DO NOT make assumptions or use external knowledge not found in the documents
-5. If a question cannot be answered from the documents, politely decline and explain what's missing
+3. If a question is out of scope (not related to document content), politely redirect the user to ask about the documents and provide 2-3 relevant example questions based on the documents' actual content
+4. When comparing documents, only compare information that is actually present in the documents
+5. DO NOT make assumptions or use external knowledge not found in the documents
 6. If documents contradict each other, acknowledge both perspectives and cite the specific documents
 7. When information spans multiple documents, clearly attribute each piece of information to its source
 
@@ -675,11 +705,9 @@ CONVERSATION HISTORY:
 USER QUESTION: {question}
 
 RESPONSE INSTRUCTIONS:
-- Answer ONLY using information from the documents above
-- Always cite which document you're referencing (e.g., "According to Document 1 (filename.pdf)...")
-- If comparing documents, only compare information that exists in both
-- If the answer is not in any document, respond with: "I cannot answer this question because the information is not present in the provided documents. Please ask a question about the documents' content."
-- Be helpful and thorough, but stay within the documents' scope"""
+- If the question IS about the documents: Answer using ONLY information from the documents and cite which document you're referencing (e.g., "According to Document 1 (filename.pdf)...")
+- If the question is NOT about the documents or out of scope: Respond with "I can only answer questions about these documents. Here are some questions you could ask:" followed by 2-3 relevant example questions based on the documents' actual content
+- Be precise, helpful, and stay within the documents' scope"""
 
         # Call Ollama API with streaming
         async with httpx.AsyncClient(timeout=120.0) as client:
