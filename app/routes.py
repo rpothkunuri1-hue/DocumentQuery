@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from app.file_storage import FileStorage
 from app.document_parser import extract_text_from_pdf
 from typing import List, Optional, AsyncIterator
@@ -8,6 +8,7 @@ import os
 import httpx
 import json
 import re
+from fpdf import FPDF
 import asyncio
 
 router = APIRouter()
@@ -792,6 +793,13 @@ async def multi_chat(request: MultiChatRequest):
     except Exception as e:
         print(f"Multi-chat error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to process multi-chat: {str(e)}")
+
+# ==================== EXPORT ENDPOINTS ====================
+
+class ExportRequest(BaseModel):
+    format: str
+
+@router.post("/api/documents/{document_id}/export")
 async def export_unified(document_id: str, request: ExportRequest):
     """Unified export endpoint for document summary and conversations"""
     try:
