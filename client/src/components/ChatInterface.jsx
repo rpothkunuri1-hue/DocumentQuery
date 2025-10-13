@@ -169,12 +169,20 @@ export default function ChatInterface({ document: currentDocument, selectedModel
     setIsStreaming(true);
 
     const tempUserMessage = {
-      id: `temp-${Date.now()}`,
+      id: `temp-user-${Date.now()}`,
       role: 'user',
       content: question,
       createdAt: new Date().toISOString(),
     };
-    setMessages(prev => [...prev, tempUserMessage]);
+    
+    const tempAssistantMessage = {
+      id: `temp-assistant-${Date.now()}`,
+      role: 'assistant',
+      content: '',
+      createdAt: new Date().toISOString(),
+    };
+    
+    setMessages(prev => [...prev, tempUserMessage, tempAssistantMessage]);
 
     abortControllerRef.current = new AbortController();
 
@@ -220,12 +228,9 @@ export default function ChatInterface({ document: currentDocument, selectedModel
                 if (data.type === 'message_id') {
                   messageId = data.messageId;
                   setProgressMetrics(null);
-                  setMessages(prev => [...prev, {
-                    id: messageId,
-                    role: 'assistant',
-                    content: '',
-                    createdAt: new Date().toISOString(),
-                  }]);
+                  setMessages(prev => prev.map(m => 
+                    m.id.startsWith('temp-assistant-') ? { ...m, id: messageId } : m
+                  ));
                 } else if (data.type === 'token' && messageId) {
                   assistantMessage += data.content;
                   setMessages(prev => prev.map(m =>
