@@ -17,6 +17,34 @@ router = APIRouter()
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", None)
 
+def clean_ai_response(text: str) -> str:
+    """
+    Clean AI response by removing common overhead tags and artifacts.
+    Handles tags from various AI models like DeepSeek, Claude, etc.
+    """
+    if not text:
+        return text
+    
+    patterns_to_remove = [
+        r'<think>.*?</think>',
+        r'</think>',
+        r'<think>',
+        r'<thinking>.*?</thinking>',
+        r'</thinking>',
+        r'<thinking>',
+        r'<reflection>.*?</reflection>',
+        r'</reflection>',
+        r'<reflection>',
+    ]
+    
+    cleaned = text
+    for pattern in patterns_to_remove:
+        cleaned = re.sub(pattern, '', cleaned, flags=re.DOTALL | re.IGNORECASE)
+    
+    cleaned = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned)
+    
+    return cleaned.strip()
+
 # Pydantic models for request bodies
 class MultiDocConversationRequest(BaseModel):
     documentIds: List[str]
@@ -505,7 +533,9 @@ RESPONSE INSTRUCTIONS:
                             if "response" in data and data["response"]:
                                 token = data["response"]
                                 full_response += token
-                                yield f'data: {json.dumps({"type": "token", "content": token})}\n\n'
+                                cleaned_token = clean_ai_response(token)
+                                if cleaned_token:
+                                    yield f'data: {json.dumps({"type": "token", "content": cleaned_token})}\n\n'
                         except json.JSONDecodeError:
                             continue
                 
@@ -533,8 +563,9 @@ RESPONSE INSTRUCTIONS:
                     yield f'data: {json.dumps({"type": "token", "content": warning_message})}\n\n'
                     print(f"Warning: Response may be out of scope for document: {document['id']}")
                 
-                # Update assistant message
-                FileStorage.update_last_message(conversation_id, full_response)
+                # Clean and update assistant message
+                cleaned_full_response = clean_ai_response(full_response)
+                FileStorage.update_last_message(conversation_id, cleaned_full_response)
                 
                 yield f'data: {json.dumps({"type": "done"})}\n\n'
                 
@@ -725,12 +756,15 @@ RESPONSE INSTRUCTIONS:
                             if "response" in data and data["response"]:
                                 token = data["response"]
                                 full_response += token
-                                yield f'data: {json.dumps({"type": "token", "content": token})}\n\n'
+                                cleaned_token = clean_ai_response(token)
+                                if cleaned_token:
+                                    yield f'data: {json.dumps({"type": "token", "content": cleaned_token})}\n\n'
                         except json.JSONDecodeError:
                             continue
                 
-                # Update assistant message
-                FileStorage.update_last_message(conversation_id, full_response)
+                # Clean and update assistant message
+                cleaned_full_response = clean_ai_response(full_response)
+                FileStorage.update_last_message(conversation_id, cleaned_full_response)
                 
                 yield f'data: {json.dumps({"type": "done"})}\n\n'
                 
