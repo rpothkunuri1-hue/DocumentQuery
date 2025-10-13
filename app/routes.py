@@ -916,44 +916,6 @@ async def export_unified_txt(document: dict, conversation: dict | None, messages
         headers={"Content-Disposition": f'attachment; filename="{safe_filename}_export.txt"'}
     )
 
-@router.get("/api/documents/{document_id}/export/json")
-async def export_conversation_json(document_id: str):
-    """Export conversation as JSON (deprecated - use unified export)"""
-    try:
-        document = FileStorage.get_document(document_id)
-        if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
-        
-        conversation = FileStorage.get_conversation_by_document(document_id)
-        if not conversation:
-            raise HTTPException(status_code=404, detail="No conversation found for this document")
-        
-        messages = FileStorage.get_messages(conversation["id"])
-        
-        export_data = {
-            "document": {
-                "id": document["id"],
-                "name": document["name"],
-                "type": document["type"]
-            },
-            "conversation": {
-                "id": conversation["id"],
-                "created_at": conversation.get("created_at")
-            },
-            "messages": messages
-        }
-        
-        json_str = json.dumps(export_data, indent=2)
-        return Response(
-            content=json_str,
-            media_type="application/json",
-            headers={"Content-Disposition": f'attachment; filename="{document["name"]}_conversation.json"'}
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export as JSON: {str(e)}")
-
 async def export_unified_markdown(document: dict, conversation: dict | None, messages: list):
     """Export as Markdown with summary and conversations"""
     markdown_content = f"# {document['name']}\n\n"
@@ -982,39 +944,6 @@ async def export_unified_markdown(document: dict, conversation: dict | None, mes
         media_type="text/markdown",
         headers={"Content-Disposition": f'attachment; filename="{safe_filename}_export.md"'}
     )
-
-@router.get("/api/documents/{document_id}/export/markdown")
-async def export_conversation_markdown(document_id: str):
-    """Export conversation as Markdown (deprecated - use unified export)"""
-    try:
-        document = FileStorage.get_document(document_id)
-        if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
-        
-        conversation = FileStorage.get_conversation_by_document(document_id)
-        if not conversation:
-            raise HTTPException(status_code=404, detail="No conversation found for this document")
-        
-        messages = FileStorage.get_messages(conversation["id"])
-        
-        markdown_content = f"# Conversation: {document['name']}\n\n"
-        markdown_content += f"**Document:** {document['name']}\n"
-        markdown_content += f"**Type:** {document['type']}\n\n"
-        markdown_content += "---\n\n"
-        
-        for msg in messages:
-            role_label = "**You:**" if msg["role"] == "user" else "**AI:**"
-            markdown_content += f"{role_label}\n\n{msg['content']}\n\n"
-        
-        return Response(
-            content=markdown_content,
-            media_type="text/markdown",
-            headers={"Content-Disposition": f'attachment; filename="{document["name"]}_conversation.md"'}
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export as Markdown: {str(e)}")
 
 async def export_unified_pdf(document: dict, conversation: dict | None, messages: list):
     """Export as PDF with summary and conversations"""
@@ -1080,70 +1009,6 @@ async def export_unified_pdf(document: dict, conversation: dict | None, messages
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{safe_filename}_export.pdf"'}
     )
-
-@router.get("/api/documents/{document_id}/export/pdf")
-async def export_conversation_pdf(document_id: str):
-    """Export conversation as PDF (deprecated - use unified export)"""
-    try:
-        document = FileStorage.get_document(document_id)
-        if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
-        
-        conversation = FileStorage.get_conversation_by_document(document_id)
-        if not conversation:
-            raise HTTPException(status_code=404, detail="No conversation found for this document")
-        
-        messages = FileStorage.get_messages(conversation["id"])
-        
-        # Create PDF using fpdf2
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        
-        # Title
-        pdf.set_font("Helvetica", "B", 20)
-        # Handle encoding for document name
-        safe_doc_name = document['name'].encode('latin-1', 'replace').decode('latin-1')
-        pdf.cell(0, 10, f"Conversation: {safe_doc_name}", ln=True)
-        pdf.ln(5)
-        
-        # Document info
-        pdf.set_font("Helvetica", "", 11)
-        pdf.cell(0, 6, f"Document: {safe_doc_name}", ln=True)
-        pdf.cell(0, 6, f"Type: {document['type']}", ln=True)
-        pdf.ln(10)
-        
-        # Messages
-        for msg in messages:
-            # Handle encoding for message content
-            safe_content = msg["content"].encode('latin-1', 'replace').decode('latin-1')
-            
-            if msg["role"] == "user":
-                pdf.set_font("Helvetica", "B", 11)
-                pdf.set_text_color(37, 99, 235)  # Blue color for user
-                pdf.cell(0, 6, "You:", ln=True)
-                pdf.set_font("Helvetica", "", 11)
-                pdf.multi_cell(0, 6, safe_content)
-            else:
-                pdf.set_font("Helvetica", "B", 11)
-                pdf.set_text_color(0, 0, 0)  # Black color for AI
-                pdf.cell(0, 6, "AI:", ln=True)
-                pdf.set_font("Helvetica", "", 11)
-                pdf.multi_cell(0, 6, safe_content)
-            pdf.ln(5)
-        
-        # Get PDF data
-        pdf_data = bytes(pdf.output())
-        
-        return Response(
-            content=pdf_data,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{safe_doc_name}_conversation.pdf"'}
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export as PDF: {str(e)}")
 
 @router.get("/api/documents/{document_id}/summary/pdf")
 async def download_document_summary_pdf(document_id: str):
