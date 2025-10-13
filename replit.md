@@ -4,7 +4,13 @@
 DocuChat is a simplified PDF chat application that allows users to upload PDF documents, get AI-generated summaries, and chat with Ollama AI about the document content. The project uses a modern tech stack with React for the frontend and FastAPI for the backend.
 
 ## Recent Changes (October 13, 2025)
-- **Simplified to Core Functionality (LATEST):**
+- **AI Response Tag Cleaning (LATEST):**
+  - Implemented stack-based scanner to remove thinking tags (`<think>`, `<thinking>`, `<reflection>`) from AI responses
+  - Prevents internal reasoning from appearing in user-facing chat (DeepSeek, Claude, and other models)
+  - Handles nested tags, partial tags, and buffer shrinkage during streaming
+  - Uses smart buffering: accumulates tokens, checks for unclosed tags, streams only safe content
+  - Final cleanup ensures stored messages are completely clean
+- **Simplified to Core Functionality:**
   - Removed TXT and DOCX file support - now PDF-only for better focus
   - Removed message editing, regeneration, rating, deletion, and copy features
   - Removed theme toggle for simpler UI
