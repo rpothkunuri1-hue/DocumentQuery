@@ -420,6 +420,12 @@ async def get_messages(conversation_id: str):
 
 # ==================== CHAT ENDPOINTS WITH SSE STREAMING ====================
 
+def is_greeting(question: str) -> bool:
+    """Check if a question is a greeting"""
+    greeting_patterns = ['hi', 'hey', 'hello', 'greetings', 'howdy', 'sup', 'hiya']
+    question_lower = question.strip().lower()
+    return any(question_lower == pattern or question_lower == pattern + '!' for pattern in greeting_patterns)
+
 async def stream_chat_response(
     document: dict,
     conversation_id: str,
@@ -441,11 +447,7 @@ async def stream_chat_response(
             return
         
         # Check for greetings
-        greeting_patterns = ['hi', 'hey', 'hello', 'greetings', 'howdy', 'sup', 'hiya']
-        question_lower = question.strip().lower()
-        is_greeting = any(question_lower == pattern or question_lower == pattern + '!' for pattern in greeting_patterns)
-        
-        if is_greeting:
+        if is_greeting(question):
             greeting_response = "What can I tell you about the document?"
             FileStorage.update_last_message(conversation_id, greeting_response)
             yield f'data: {json.dumps({"type": "token", "content": greeting_response})}\n\n'
@@ -647,11 +649,7 @@ async def stream_multi_chat_response(
             return
         
         # Check for greetings
-        greeting_patterns = ['hi', 'hey', 'hello', 'greetings', 'howdy', 'sup', 'hiya']
-        question_lower = question.strip().lower()
-        is_greeting = any(question_lower == pattern or question_lower == pattern + '!' for pattern in greeting_patterns)
-        
-        if is_greeting:
+        if is_greeting(question):
             doc_names = ", ".join([f'"{doc["name"]}"' for doc in valid_content_documents])
             greeting_response = f"What can I tell you about these documents: {doc_names}?"
             FileStorage.update_last_message(conversation_id, greeting_response)
