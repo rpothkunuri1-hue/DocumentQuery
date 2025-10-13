@@ -45,6 +45,47 @@ def clean_ai_response(text: str) -> str:
     
     return cleaned.strip()
 
+def get_safe_content_for_streaming(text: str) -> str:
+    """
+    Extract content that's safe to stream using a stack-based scanner.
+    Returns only content outside of any unclosed tags, handling nesting properly.
+    """
+    if not text:
+        return ""
+    
+    tag_types = ['think', 'thinking', 'reflection']
+    tag_stack = []
+    last_safe_pos = 0
+    i = 0
+    
+    while i < len(text):
+        if text[i] == '<':
+            for tag_type in tag_types:
+                open_tag = f'<{tag_type}>'
+                close_tag = f'</{tag_type}>'
+                
+                if text[i:i+len(open_tag)].lower() == open_tag.lower():
+                    if not tag_stack:
+                        last_safe_pos = i
+                    tag_stack.append((tag_type, i))
+                    i += len(open_tag)
+                    break
+                elif text[i:i+len(close_tag)].lower() == close_tag.lower():
+                    if tag_stack and tag_stack[-1][0] == tag_type:
+                        tag_stack.pop()
+                    i += len(close_tag)
+                    break
+            else:
+                i += 1
+        else:
+            i += 1
+    
+    if tag_stack:
+        safe_text = text[:last_safe_pos]
+        return clean_ai_response(safe_text)
+    
+    return clean_ai_response(text)
+
 # Pydantic models for request bodies
 class MultiDocConversationRequest(BaseModel):
     documentIds: List[str]
@@ -526,6 +567,10 @@ RESPONSE INSTRUCTIONS:
                     raise Exception(f"Ollama API error: {response.status_code}")
                 
                 full_response = ""
+                last_streamed_length = 0
+                buffer_size = 5
+                token_count = 0
+                
                 async for line in response.aiter_lines():
                     if line.strip():
                         try:
@@ -533,11 +578,25 @@ RESPONSE INSTRUCTIONS:
                             if "response" in data and data["response"]:
                                 token = data["response"]
                                 full_response += token
-                                cleaned_token = clean_ai_response(token)
-                                if cleaned_token:
-                                    yield f'data: {json.dumps({"type": "token", "content": cleaned_token})}\n\n'
+                                token_count += 1
+                                
+                                if token_count % buffer_size == 0:
+                                    safe_content = get_safe_content_for_streaming(full_response)
+                                    last_streamed_length = min(last_streamed_length, len(safe_content))
+                                    new_content = safe_content[last_streamed_length:]
+                                    if new_content:
+                                        yield f'data: {json.dumps({"type": "token", "content": new_content})}\n\n'
+                                        last_streamed_length = len(safe_content)
                         except json.JSONDecodeError:
                             continue
+                
+                cleaned_full = clean_ai_response(full_response)
+                last_streamed_length = min(last_streamed_length, len(cleaned_full))
+                remaining_content = cleaned_full[last_streamed_length:]
+                if remaining_content:
+                    yield f'data: {json.dumps({"type": "token", "content": remaining_content})}\n\n'
+                
+                full_response = cleaned_full
                 
                 # Post-response verification
                 has_document_reference = len(full_response) > 50 and (
@@ -749,6 +808,10 @@ RESPONSE INSTRUCTIONS:
                     raise Exception(f"Ollama API error: {response.status_code}")
                 
                 full_response = warning_prefix
+                last_streamed_length = len(warning_prefix)
+                buffer_size = 5
+                token_count = 0
+                
                 async for line in response.aiter_lines():
                     if line.strip():
                         try:
@@ -756,15 +819,25 @@ RESPONSE INSTRUCTIONS:
                             if "response" in data and data["response"]:
                                 token = data["response"]
                                 full_response += token
-                                cleaned_token = clean_ai_response(token)
-                                if cleaned_token:
-                                    yield f'data: {json.dumps({"type": "token", "content": cleaned_token})}\n\n'
+                                token_count += 1
+                                
+                                if token_count % buffer_size == 0:
+                                    safe_content = get_safe_content_for_streaming(full_response)
+                                    last_streamed_length = min(last_streamed_length, len(safe_content))
+                                    new_content = safe_content[last_streamed_length:]
+                                    if new_content:
+                                        yield f'data: {json.dumps({"type": "token", "content": new_content})}\n\n'
+                                        last_streamed_length = len(safe_content)
                         except json.JSONDecodeError:
                             continue
                 
-                # Clean and update assistant message
-                cleaned_full_response = clean_ai_response(full_response)
-                FileStorage.update_last_message(conversation_id, cleaned_full_response)
+                cleaned_full = clean_ai_response(full_response)
+                last_streamed_length = min(last_streamed_length, len(cleaned_full))
+                remaining_content = cleaned_full[last_streamed_length:]
+                if remaining_content:
+                    yield f'data: {json.dumps({"type": "token", "content": remaining_content})}\n\n'
+                
+                FileStorage.update_last_message(conversation_id, cleaned_full)
                 
                 yield f'data: {json.dumps({"type": "done"})}\n\n'
                 
