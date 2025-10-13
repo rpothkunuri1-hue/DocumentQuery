@@ -426,19 +426,14 @@ export default function ChatInterface({ document: currentDocument, selectedModel
               {message.role === 'user' ? 'U' : 'AI'}
             </div>
             <div className="message-body">
-              <div className="message-content">{message.content}</div>
+              {message.role === 'assistant' && !message.content && isStreaming ? (
+                <LoadingDots />
+              ) : (
+                <div className="message-content">{message.content}</div>
+              )}
             </div>
           </div>
         ))}
-
-        {isStreaming && messages.length > 0 && messages[messages.length - 1].role === 'assistant' && !messages[messages.length - 1].content && (
-          <div className="message assistant">
-            <div className="message-avatar">AI</div>
-            <div className="message-body">
-              <LoadingDots />
-            </div>
-          </div>
-        )}
 
         <div ref={messagesEndRef} />
       </div>
