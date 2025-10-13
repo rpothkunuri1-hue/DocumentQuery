@@ -5,3 +5,10 @@ pymupdf
 httpx
 fpdf2
 python-docx
+fastapi
+fpdf2
+httpx
+pymupdf
+python-docx
+python-multipart
+uvicorn
