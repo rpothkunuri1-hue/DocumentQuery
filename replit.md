@@ -1,9 +1,20 @@
-# DocuChat - Basic Document Viewer
+# DocuChat - PDF AI Chat Assistant
 
 ## Overview
-DocuChat is a simplified document viewer application that allows users to upload and view PDF, TXT, and DOCX files with optional AI chat features. The project uses a modern tech stack with React for the frontend and FastAPI for the backend.
+DocuChat is a simplified PDF chat application that allows users to upload PDF documents, get AI-generated summaries, and chat with Ollama AI about the document content. The project uses a modern tech stack with React for the frontend and FastAPI for the backend.
 
-## Recent Changes (October 12, 2025)
+## Recent Changes (October 13, 2025)
+- **Simplified to Core Functionality (LATEST):**
+  - Removed TXT and DOCX file support - now PDF-only for better focus
+  - Removed message editing, regeneration, rating, deletion, and copy features
+  - Removed theme toggle for simpler UI
+  - Kept export functionality (PDF, TXT, MD, JSON)
+  - Cleaned up dependencies: removed python-docx and duplicate entries
+  - Removed unused functions from document_parser.py
+  - Deleted outdated documentation files (DEPENDENCIES.md, IMPLEMENTATION_SUMMARY.md)
+  - Fixed scrolling issue where header would get hidden during long conversations
+
+## Previous Changes (October 12, 2025)
 - **Enhanced SSE Implementation for Real-Time Updates (LATEST):** Eliminated polling bottleneck with improved streaming
   - **Keep-Alive Heartbeat:** Added 15-second heartbeat to prevent connection timeouts during long Ollama processing
   - **Streaming Progress During AI Generation:** Ollama summary generation now streams token-by-token with live progress updates (50%-85%)
@@ -88,11 +99,8 @@ DocuChat employs a client-server architecture:
 - **AI Integration:** Optional Ollama integration for document Q&A
 
 **Current Features:**
-- **Document Upload:** Supports PDF, TXT, and DOCX files (10MB limit)
-- **Text Extraction:** 
-  - PDF: Uses PyMuPDF (pymupdf) for text extraction
-  - TXT: Direct text file reading with UTF-8 encoding
-  - DOCX: Uses python-docx for modern Word documents
+- **Document Upload:** Supports PDF files only (10MB limit)
+- **Text Extraction:** Uses PyMuPDF (pymupdf) for PDF text extraction
 - **Real-Time Progress Tracking:** Visual progress bar with 5-stage updates during summary generation
 - **Optional AI Chat:** Requires Ollama with at least one model installed and selected from UI
 - **Scope-Limited Responses:** AI only answers questions from document content, rejects out-of-scope queries
