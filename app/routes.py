@@ -235,7 +235,7 @@ SUMMARY:"""
         try:
             print(f"[SUMMARY] Attempt {attempt + 1}/{max_retries} - Requesting summary for model '{model_name}' (content length: {len(truncated_content)} chars)")
             
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=180.0) as client:
                 summary = ""
                 # Use streaming to provide real-time progress
                 async with client.stream(
@@ -487,6 +487,63 @@ async def get_messages(conversation_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch messages: {str(e)}")
 
+class MessageUpdate(BaseModel):
+    content: str
+
+@router.delete("/api/messages/{conversation_id}/{message_id}")
+async def delete_message(conversation_id: str, message_id: str):
+    """Delete a message and optionally its following assistant message"""
+    try:
+        # Verify conversation exists
+        conversation = FileStorage.get_conversation(conversation_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        # Get all messages
+        messages = FileStorage.get_messages(conversation_id)
+        message_index = next((i for i, m in enumerate(messages) if m['id'] == message_id), None)
+        
+        if message_index is None:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        # If it's a user message, also delete the following assistant message
+        message_to_delete = messages[message_index]
+        if message_to_delete['role'] == 'user' and message_index + 1 < len(messages):
+            following_message = messages[message_index + 1]
+            if following_message['role'] == 'assistant':
+                FileStorage.delete_message(conversation_id, following_message['id'])
+        
+        # Delete the message
+        success = FileStorage.delete_message(conversation_id, message_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Failed to delete message")
+        
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete message: {str(e)}")
+
+@router.patch("/api/messages/{conversation_id}/{message_id}")
+async def update_message(conversation_id: str, message_id: str, update: MessageUpdate):
+    """Update a message's content"""
+    try:
+        # Verify conversation exists
+        conversation = FileStorage.get_conversation(conversation_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        # Update message
+        updated_message = FileStorage.update_message(conversation_id, message_id, update.content)
+        if not updated_message:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        return updated_message
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update message: {str(e)}")
+
 # ==================== CHAT ENDPOINTS WITH SSE STREAMING ====================
 
 def is_greeting(question: str) -> bool:
@@ -556,8 +613,8 @@ RESPONSE INSTRUCTIONS:
 - If the question is NOT about the document or out of scope: Respond with "I can only answer questions about {doc_name}. Here are some questions you could ask:" followed by 2-3 relevant example questions based on the document's actual content
 - Be precise, helpful, and stay within the document's scope"""
 
-        # Call Ollama API with streaming
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        # Call Ollama API with streaming - increased timeout to 5 minutes for large documents
+        async with httpx.AsyncClient(timeout=300.0) as client:
             async with client.stream(
                 "POST",
                 f"{OLLAMA_BASE_URL}/api/generate",
@@ -797,8 +854,8 @@ RESPONSE INSTRUCTIONS:
 - If the question is NOT about the documents or out of scope: Respond with "I can only answer questions about these documents. Here are some questions you could ask:" followed by 2-3 relevant example questions based on the documents' actual content
 - Be precise, helpful, and stay within the documents' scope"""
 
-        # Call Ollama API with streaming
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        # Call Ollama API with streaming - increased timeout to 5 minutes for large documents
+        async with httpx.AsyncClient(timeout=300.0) as client:
             async with client.stream(
                 "POST",
                 f"{OLLAMA_BASE_URL}/api/generate",

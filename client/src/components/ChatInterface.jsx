@@ -157,6 +157,75 @@ export default function ChatInterface({ document: currentDocument, selectedModel
       abortControllerRef.current = null;
       setIsStreaming(false);
       setProgressMetrics(null);
+      
+      // Remove blank assistant message after cancellation
+      setMessages(prev => prev.filter(m => m.content || m.role === 'user'));
+    }
+  };
+
+  const deleteMessage = async (messageId) => {
+    try {
+      const response = await fetch(`/api/messages/${conversationId}/${messageId}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete message');
+      }
+      
+      // Remove message and any following assistant message
+      setMessages(prev => {
+        const messageIndex = prev.findIndex(m => m.id === messageId);
+        if (messageIndex === -1) return prev;
+        
+        // If it's a user message, also remove the following assistant message
+        if (prev[messageIndex].role === 'user' && messageIndex + 1 < prev.length && prev[messageIndex + 1].role === 'assistant') {
+          return prev.filter((_, idx) => idx !== messageIndex && idx !== messageIndex + 1);
+        }
+        
+        return prev.filter(m => m.id !== messageId);
+      });
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      setError(`Failed to delete message: ${error.message}`);
+    }
+  };
+
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editContent, setEditContent] = useState('');
+
+  const startEdit = (message) => {
+    setEditingMessageId(message.id);
+    setEditContent(message.content);
+  };
+
+  const cancelEdit = () => {
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+
+  const saveEdit = async (messageId) => {
+    try {
+      const response = await fetch(`/api/messages/${conversationId}/${messageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editContent })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update message');
+      }
+      
+      // Update local state
+      setMessages(prev => prev.map(m => 
+        m.id === messageId ? { ...m, content: editContent } : m
+      ));
+      
+      setEditingMessageId(null);
+      setEditContent('');
+    } catch (error) {
+      console.error('Failed to update message:', error);
+      setError(`Failed to update message: ${error.message}`);
     }
   };
 
@@ -203,8 +272,6 @@ export default function ChatInterface({ document: currentDocument, selectedModel
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.detail || `Failed to send message (${response.status})`);
       }
-
-      setShowDocSummary(false);
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let assistantMessage = '';
@@ -265,9 +332,22 @@ export default function ChatInterface({ document: currentDocument, selectedModel
     } catch (error) {
       if (error.name === 'AbortError') {
         console.log('Generation stopped by user');
+        // Remove incomplete messages after abort
+        setMessages(prev => prev.filter(m => m.content || m.role === 'user'));
       } else {
         console.error('Failed to send message:', error);
-        setError(`Message failed: ${error.message}`);
+        let errorMessage = error.message;
+        
+        // Provide more helpful error messages
+        if (error.message.includes('timeout') || error.message.includes('Timeout')) {
+          errorMessage = 'Request timed out. The AI model is taking longer than expected. Please try again with a shorter question or check if the AI service is running properly.';
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'Unable to connect to the AI service. Please check if the AI model is running and try again.';
+        }
+        
+        setError(errorMessage);
+        // Remove failed assistant message
+        setMessages(prev => prev.filter(m => m.content || m.role === 'user'));
       }
       setIsStreaming(false);
       setProgressMetrics(null);
@@ -425,13 +505,99 @@ export default function ChatInterface({ document: currentDocument, selectedModel
             <div className="message-avatar">
               {message.role === 'user' ? 'U' : 'AI'}
             </div>
-            <div className="message-body">
-              {message.role === 'assistant' && !message.content && isStreaming ? (
-                <LoadingDots />
+            <div className="message-body" style={{ flex: 1 }}>
+              {editingMessageId === message.id ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    style={{
+                      width: '100%',
+                      minHeight: '60px',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      border: '1px solid #ccc',
+                      fontFamily: 'inherit',
+                      fontSize: 'inherit'
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => saveEdit(message.id)}
+                      style={{
+                        padding: '4px 12px',
+                        backgroundColor: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      style={{
+                        padding: '4px 12px',
+                        backgroundColor: '#6b7280',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               ) : (
-                <div className="message-content">{message.content}</div>
+                <>
+                  {message.role === 'assistant' && !message.content && isStreaming ? (
+                    <LoadingDots />
+                  ) : (
+                    <div className="message-content">{message.content}</div>
+                  )}
+                </>
               )}
             </div>
+            {message.role === 'user' && editingMessageId !== message.id && !isStreaming && (
+              <div style={{ display: 'flex', gap: '4px', marginLeft: '8px' }}>
+                <button
+                  onClick={() => startEdit(message)}
+                  style={{
+                    padding: '4px 8px',
+                    backgroundColor: 'transparent',
+                    color: '#6b7280',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                  title="Edit message"
+                >
+                  ✏️
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm('Delete this message and its response?')) {
+                      deleteMessage(message.id);
+                    }
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    backgroundColor: 'transparent',
+                    color: '#ef4444',
+                    border: '1px solid #fecaca',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                  title="Delete message"
+                >
+                  🗑️
+                </button>
+              </div>
+            )}
           </div>
         ))}
 

@@ -207,3 +207,48 @@ class FileStorage:
             json.dump(conversation, f, ensure_ascii=False, indent=2)
         
         return conversation["messages"][-1]
+    
+    @staticmethod
+    def delete_message(conv_id: str, message_id: str) -> bool:
+        """Delete a message from a conversation"""
+        conversation = FileStorage.get_conversation(conv_id)
+        if not conversation:
+            return False
+        
+        # Find and remove the message
+        original_length = len(conversation["messages"])
+        conversation["messages"] = [m for m in conversation["messages"] if m["id"] != message_id]
+        
+        # Check if message was actually deleted
+        if len(conversation["messages"]) == original_length:
+            return False
+        
+        conv_path = FileStorage._get_conversation_path(conv_id)
+        with open(conv_path, 'w', encoding='utf-8') as f:
+            json.dump(conversation, f, ensure_ascii=False, indent=2)
+        
+        return True
+    
+    @staticmethod
+    def update_message(conv_id: str, message_id: str, content: str) -> Optional[Dict[str, Any]]:
+        """Update a message's content"""
+        conversation = FileStorage.get_conversation(conv_id)
+        if not conversation:
+            return None
+        
+        # Find and update the message
+        for message in conversation["messages"]:
+            if message["id"] == message_id:
+                # Store original content if not already edited
+                if not message.get("edited"):
+                    message["original_content"] = message["content"]
+                message["content"] = content
+                message["edited"] = True
+                
+                conv_path = FileStorage._get_conversation_path(conv_id)
+                with open(conv_path, 'w', encoding='utf-8') as f:
+                    json.dump(conversation, f, ensure_ascii=False, indent=2)
+                
+                return message
+        
+        return None
