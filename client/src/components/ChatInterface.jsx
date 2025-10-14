@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export default function ChatInterface({ document: currentDocument, selectedModel, onDocumentUpdate }) {
+export default function ChatInterface({ document: currentDocument, selectedModel, onDocumentUpdate, isOllamaAvailable = true }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -12,6 +12,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
   const [summaryProgress, setSummaryProgress] = useState(0);
   const [summaryMessage, setSummaryMessage] = useState('');
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [toast, setToast] = useState(null);
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const summaryPollInterval = useRef(null);
@@ -52,6 +53,17 @@ export default function ChatInterface({ document: currentDocument, selectedModel
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (!isOllamaAvailable) {
+      setToast({
+        type: 'warning',
+        message: 'Ollama AI is not available. Please install and run Ollama with at least one model to use the chat feature.'
+      });
+    } else {
+      setToast(null);
+    }
+  }, [isOllamaAvailable]);
 
   const startSummaryPolling = () => {
     if (summaryPollInterval.current) {
@@ -232,7 +244,7 @@ export default function ChatInterface({ document: currentDocument, selectedModel
   const sendMessage = async (e) => {
     e.preventDefault();
     const question = input.trim();
-    if (!question || isStreaming || !conversationId) return;
+    if (!question || isStreaming || !conversationId || !isOllamaAvailable) return;
 
     setInput('');
     setIsStreaming(true);
@@ -384,9 +396,43 @@ export default function ChatInterface({ document: currentDocument, selectedModel
       <div className="chat-header">
         <div className="chat-header-content">
           <h2 data-testid="text-header">{currentDocument.name}</h2>
-          <p>Ask questions about this document • Using {selectedModel}</p>
+          <p>Ask questions about this document • Using {selectedModel || 'No model'}</p>
         </div>
       </div>
+
+      {toast && (
+        <div 
+          className="toast-notification" 
+          style={{ 
+            backgroundColor: toast.type === 'warning' ? '#fef3c7' : '#fee2e2', 
+            color: toast.type === 'warning' ? '#92400e' : '#991b1b', 
+            padding: '12px 16px', 
+            margin: '16px', 
+            borderRadius: '8px',
+            borderLeft: toast.type === 'warning' ? '4px solid #f59e0b' : '4px solid #ef4444',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <span style={{ fontSize: '20px' }}>{toast.type === 'warning' ? '⚠️' : '❌'}</span>
+          <span style={{ flex: 1 }}>{toast.message}</span>
+          <button 
+            onClick={() => setToast(null)}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              color: 'inherit', 
+              cursor: 'pointer',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              padding: '0 4px'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="error-banner" style={{ 
@@ -625,22 +671,27 @@ export default function ChatInterface({ document: currentDocument, selectedModel
               sendMessage(e);
             }
           }}
-          placeholder="Ask a question about the document..."
+          placeholder={isOllamaAvailable ? "Ask a question about the document..." : "Ollama AI is not available. Please install and run Ollama to chat."}
           rows={1}
-          disabled={isStreaming}
+          disabled={isStreaming || !isOllamaAvailable}
           style={{
             minHeight: '44px',
             maxHeight: '150px',
             resize: 'none',
-            overflow: 'auto'
+            overflow: 'auto',
+            opacity: !isOllamaAvailable ? 0.6 : 1
           }}
         />
         {!isStreaming ? (
           <button
             type="submit"
             className="btn-send"
-            disabled={!input.trim() || !conversationId}
-            title="Send message"
+            disabled={!input.trim() || !conversationId || !isOllamaAvailable}
+            title={isOllamaAvailable ? "Send message" : "Ollama is not available"}
+            style={{
+              opacity: !isOllamaAvailable ? 0.5 : 1,
+              cursor: !isOllamaAvailable ? 'not-allowed' : 'pointer'
+            }}
           >
             <span className="icon icon-send"></span>
           </button>

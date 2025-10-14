@@ -204,6 +204,7 @@ export default function App() {
             document={activeDocument} 
             selectedModel={selectedModel}
             onDocumentUpdate={handleDocumentUpdate}
+            isOllamaAvailable={availableModels.length > 0}
           />
         ) : (
           <div className="welcome-screen">
