@@ -1,228 +1,71 @@
 # DocuChat - PDF AI Chat Assistant
 
 ## Overview
-DocuChat is a simplified PDF chat application that allows users to upload PDF documents, get AI-generated summaries, and chat with Ollama AI about the document content. The project uses a modern tech stack with React for the frontend and FastAPI for the backend.
-
-## Recent Changes (October 13, 2025)
-- **AI Response Tag Cleaning (LATEST):**
-  - Implemented stack-based scanner to remove thinking tags (`<think>`, `<thinking>`, `<reflection>`) from AI responses
-  - Prevents internal reasoning from appearing in user-facing chat (DeepSeek, Claude, and other models)
-  - Handles nested tags, partial tags, and buffer shrinkage during streaming
-  - Uses smart buffering: accumulates tokens, checks for unclosed tags, streams only safe content
-  - Final cleanup ensures stored messages are completely clean
-- **Simplified to Core Functionality:**
-  - Removed TXT and DOCX file support - now PDF-only for better focus
-  - Removed message editing, regeneration, rating, deletion, and copy features
-  - Removed theme toggle for simpler UI
-  - Kept export functionality (PDF, TXT, MD, JSON)
-  - Cleaned up dependencies: removed python-docx and duplicate entries
-  - Removed unused functions from document_parser.py
-  - Deleted outdated documentation files (DEPENDENCIES.md, IMPLEMENTATION_SUMMARY.md)
-  - Fixed scrolling issue where header would get hidden during long conversations
-
-## Previous Changes (October 12, 2025)
-- **Enhanced SSE Implementation for Real-Time Updates (LATEST):** Eliminated polling bottleneck with improved streaming
-  - **Keep-Alive Heartbeat:** Added 15-second heartbeat to prevent connection timeouts during long Ollama processing
-  - **Streaming Progress During AI Generation:** Ollama summary generation now streams token-by-token with live progress updates (50%-85%)
-  - **Connection Status Indicator:** Visual "Live" indicator shows SSE connection state with green pulsing dot
-  - **Auto-Reconnection Logic:** Exponential backoff retry mechanism (max 3 attempts) for dropped connections
-  - **Smoother Progress Updates:** Progress bar now updates during actual AI generation, not just before/after
-  - **Better Error Handling:** Clear error messages and automatic recovery from temporary connection issues
-- **Progress Tracking for Summary Generation:** Real-time progress updates with visual feedback
-  - Added 5-stage progress tracking: Preparing (10%), Analyzing (30%), Generating (50%-85%), Finalizing (90%), Complete (100%)
-  - Implemented Server-Sent Events (SSE) for real-time status streaming
-  - Visual progress bar with percentage indicators and descriptive status messages
-  - Smart timeout handling: 5-minute max duration
-  - Proper status normalization (None → "none") for accurate terminal state detection
-- **DOCX File Support:** Added support for modern Word documents (.docx)
-  - Uses python-docx library for text extraction
-  - Maintains existing PDF and TXT support
-  - Proper error handling for legacy .doc format (not supported)
-- **Import Complete:** Successfully migrated project to Replit environment with all dependencies installed
-- **Improved Ollama 500 Error Diagnostics:** Enhanced logging and error handling for summary generation
-  - Reduced content length from 4000 to 2000 characters to avoid token limits
-  - Increased timeout from 60s to 120s to give Ollama more time to respond
-  - Added detailed logging with [SUMMARY] and [SUMMARY ERROR] prefixes for easy debugging
-  - Logs now show: model name, content length, exact Ollama error response, and full stack traces
-  - Added ReadTimeout exception handling for timeout scenarios
-  - Better background task error handling with detailed logging
-- **Fixed Ollama 500 Error:** Enhanced error handling for Ollama API integration
-  - Added specific error handling for 404 (model not found), 500 (server error), and connection errors
-  - Detailed logging helps diagnose Ollama configuration issues
-  - Prevents crashes when Ollama is unavailable or misconfigured
-- **Fixed Multiple Polling Issue (NEW):** Resolved duplicate summary API calls
-  - Fixed polling interval cleanup to prevent multiple simultaneous requests
-  - Added error handling to stop polling on failures
-  - Removed non-existent function call that was causing errors
-- **Fixed Upload Error:** Resolved "unexpected keyword argument" error in FileStorage
-  - Added summary_status field to default document structure
-  - Fixed upload flow to properly handle summary generation status
-- **Fixed Large File Upload Issue:** Resolved upload failures for files > 2MB
-  - Implemented chunked file reading (1MB chunks) instead of reading entire file at once
-  - Added proper 413 status code for files exceeding 10MB limit
-  - Improved error messages to clearly indicate when file size limit is exceeded
-  - Better memory management for handling larger files up to 10MB
-- **App Naming Consistency (NEW):** Updated all references to use "DocuChat" branding
-  - Changed package.json name from "rest-express" to "docuchat"
-  - Consistent naming across frontend, backend, and documentation
-- **Improved Loading Animation (NEW):** Replaced loading dots with natural bouncing animation
-  - Changed from simple pulse animation to smooth bouncing dots
-  - Custom keyframe animation for better visual feedback
-  - Staggered animation delay creates natural wave effect
-- **Fixed PDF Export Error:** Resolved 500 error by converting fpdf2 bytearray output to bytes for FastAPI Response
-- **Unified Export System:** Complete redesign of export functionality
-  - Merged document summary and conversation history into single export files
-  - All formats (PDF, TXT, MD, JSON) now include both document content and chat history
-  - Replaced 4 separate export buttons with ONE unified "Export" button
-  - Added modal popup for format selection with clear descriptions
-  - Improved file naming and error handling
-- **Document Summary on Upload:** Automatic summary display when document loads
-  - Shows word count and document information
-  - Prompts user to ask questions about the document
-  - Hides after first message to keep chat clean
-- **Enhanced Error Handling:** Specific, actionable error messages
-  - Error banner displays at top of chat with dismiss button
-  - Backend provides detailed error descriptions
-  - No more generic error messages
-- **Scope Validation:** AI strictly answers only from document content
-  - System validates document has sufficient content
-  - Explicit refusal of out-of-scope questions
-  - Post-response verification for accuracy
-- **Previous Updates:**
-  - Simplified to Basic App: PDF and TXT files only
-  - Removed lucide-react icon library, using pure CSS icons
-  - Streamlined upload flow with auto-upload on file selection
-  - Enhanced UI design with gradient header and improved aesthetics
+DocuChat is a simplified PDF chat application enabling users to upload PDF documents, receive AI-generated summaries, and interact with Ollama AI regarding the document content. The project aims to provide a focused and efficient tool for document understanding and interaction, leveraging a modern tech stack.
 
 ## User Preferences
 I prefer simple language. I want iterative development. Ask before making major changes. I prefer detailed explanations. Do not make changes to the folder Z. Do not make changes to the file Y.
 
 ## System Architecture
 DocuChat employs a client-server architecture:
-- **Frontend:** Built with React 18 and Vite, utilizing Lucide React Icons for UI
-- **Backend:** Powered by FastAPI (Python) with Uvicorn
-- **File Storage:** In-memory storage using FileStorage class
-- **AI Integration:** Optional Ollama integration for document Q&A
 
-**Current Features:**
-- **Document Upload:** Supports PDF files only (10MB limit)
-- **Text Extraction:** Uses PyMuPDF (pymupdf) for PDF text extraction
-- **Real-Time Progress Tracking:** Visual progress bar with 5-stage updates during summary generation
-- **Optional AI Chat:** Requires Ollama with at least one model installed and selected from UI
-- **Scope-Limited Responses:** AI only answers questions from document content, rejects out-of-scope queries
+### UI/UX Decisions
+- **Simplified Interface:** Focuses on core PDF interaction, removing extraneous features like theme toggles and complex message actions.
+- **Real-Time Feedback:** Incorporates visual progress bars with 5-stage updates and Server-Sent Events (SSE) for live status during AI operations.
+- **Improved Loading:** Uses natural bouncing animation for loading indicators.
+- **Unified Export:** A single "Export" button with a modal for format selection, combining document summary and conversation history.
+- **Actionable Error Messages:** Provides specific and detailed error feedback to the user.
+- **Summary Banner:** Displays document summary and prompts upon upload, then hides for cleaner chat.
+
+### Technical Implementations
+- **Frontend:** React 18 with Vite, utilizing CSS icons for UI.
+- **Backend:** FastAPI (Python) with Uvicorn.
+- **File Storage:** In-memory storage using a `FileStorage` class.
+- **AI Integration:** Optional Ollama integration for document Q&A and summarization.
+- **Text Extraction:** PyMuPDF for PDF text extraction.
+- **Streaming:** Enhanced SSE implementation for real-time updates, including keep-alive heartbeats, auto-reconnection logic, and token-by-token progress.
+- **Message Management:** Implemented features for editing and deleting user messages, including corresponding AI responses, with backend API support.
+- **AI Response Cleaning:** Stack-based scanner removes internal thinking tags (e.g., `<think>`) from AI responses to improve user experience.
+- **Error Handling:** Robust error handling for timeouts, connection issues, and Ollama API interactions.
+- **File Uploads:** Chunked file reading for larger files (up to 10MB limit).
+
+### Feature Specifications
+- **Document Upload:** Supports PDF files only (10MB limit).
+- **Optional AI Chat:** Requires Ollama with at least one model installed and selected from the UI.
+- **Scope-Limited Responses:** AI answers strictly from document content, rejecting out-of-scope queries.
+- **Unified Export:** Exports both document summary and conversation history in PDF, TXT, MD, and JSON formats.
+- **Real-Time Progress Tracking:** Visual updates for summary generation (Preparing, Analyzing, Generating, Finalizing, Complete).
+
+### System Design Choices
 - **API Endpoints:**
-  - `GET /api/documents` - List all documents
-  - `GET /api/documents/{id}` - Get single document
-  - `POST /api/documents/upload` - Upload PDF, TXT, or DOCX file
-  - `DELETE /api/documents/{id}` - Delete document
-  - `GET /api/models` - Get available Ollama models
-  - `POST /api/chat` - Chat with document (requires model selection)
-  - **`POST /api/documents/{id}/export`** - Unified export with summary & conversation (PDF/TXT/MD/JSON)
-  - **`GET /api/documents/{document_id}/summary-status`** - **NEW: SSE endpoint for real-time progress updates**
-  - `GET /api/documents/{id}/export/{format}` - Legacy export endpoints (deprecated)
-  - `GET /api/documents/{id}/summary/pdf` - Legacy summary download (deprecated)
+    - `GET /api/documents`
+    - `GET /api/documents/{id}`
+    - `POST /api/documents/upload`
+    - `DELETE /api/documents/{id}`
+    - `GET /api/models`
+    - `POST /api/chat`
+    - `POST /api/documents/{id}/export` (Unified export)
+    - `GET /api/documents/{document_id}/summary-status` (SSE endpoint)
+    - `PATCH /api/messages/{conversation_id}/{message_id}` (Edit message)
+    - `DELETE /api/messages/{conversation_id}/{message_id}` (Delete message)
+- **Project Structure:**
+    - `client/`: Frontend React application.
+    - `app/`: Backend FastAPI application (contains `routes.py`, `document_parser.py`, `file_storage.py`).
+    - `main.py`: FastAPI server entry point.
+    - `dist/`: Built frontend files.
 
-**Project Structure:**
-- `client/`: Frontend React application
-  - `src/components/`: React components (ChatInterface, DocumentList, UploadModal)
-  - `src/App.jsx`: Main application component with dynamic model selection
-  - `src/main.jsx`: Entry point
-- `app/`: Backend FastAPI application
-  - `routes.py`: API endpoints
-  - `document_parser.py`: PDF, TXT, and DOCX text extraction
-  - `file_storage.py`: In-memory document storage
-- `main.py`: FastAPI server entry point
-- `dist/`: Built frontend files (served by backend)
+## External Dependencies
 
-## Current Status
+### Frontend
+- React 18
+- Vite
+- Autoprefixer
+- PostCSS
 
-### ✅ Working Features:
-- Backend server running on port 5000 (Replit) or 8000 (local)
-- Frontend built and served successfully
-- PDF, TXT, and DOCX file upload and processing (10MB limit)
-- Document listing and deletion
-- Dynamic model selection from Ollama
-- **NEW: Real-time progress tracking** - Visual progress bar with 5-stage updates during summary generation
-- **NEW: Server-Sent Events (SSE)** - Efficient real-time status updates without polling
-- Unified export system - Single button exports both summary and conversation in PDF/TXT/MD/JSON
-- Document summary banner - Shows word count and prompts on upload
-- Specific error messages - Detailed, actionable error feedback
-- Scope validation - AI only answers from document content
-
-### ⚠️ Configuration Required:
-- **Ollama Setup (for AI chat):**
-  - Install Ollama service
-  - Pull at least one model: `ollama pull llama3.2`
-  - Select model from UI dropdown (no hardcoded defaults)
-  - Model selection is mandatory for chat features
-
-### 🔧 Local Development:
-**Two terminal setup required:**
-- Terminal 1: `npm run dev:backend` (port 8000)
-- Terminal 2: `npm run dev` (port 5000)
-- Frontend proxies API requests to backend automatically
-
-## Dependencies
-
-**Frontend (6 packages):**
-- React 18, Vite (removed Lucide React Icons - using CSS icons instead)
-- Autoprefixer, PostCSS
-
-**Backend (7 Python packages):**
-- fastapi - Web framework
-- uvicorn - ASGI server
-- python-multipart - File upload handling
-- pymupdf - PDF text extraction
-- python-docx - DOCX text extraction
-- httpx - HTTP client (for Ollama integration)
-- fpdf2 - PDF generation (for exports)
-
-**Total: ~100 packages (including dependencies)**
-- Backend: ~25-30 packages
-- Frontend: ~74 packages
-- All necessary, no redundancies
-
-## Key Improvements Made
-
-1. **Real-Time Progress Tracking:** Visual progress bar with 5-stage updates and SSE streaming (no polling!)
-2. **DOCX Support:** Added modern Word document support alongside PDF and TXT
-3. **Fixed Large File Uploads:** Chunked reading prevents failures for files > 2MB (up to 10MB supported)
-4. **Consistent Branding:** All references now use "DocuChat" naming across the entire application
-5. **Natural Loading Animation:** Smooth bouncing dots replace simple pulse animation for better UX
-6. **Unified Export System:** All export formats include both document summary and conversation history
-7. **Single Export Button:** Replaced 4 buttons with 1 unified button + modal for better UX
-8. **Document Summary on Upload:** Users immediately see word count and are prompted to ask questions
-9. **Specific Error Messages:** Detailed error feedback instead of generic messages
-10. **Scope Validation:** AI strictly answers only from document content, no out-of-scope responses
-11. **No Hardcoded Models:** Backend no longer defaults to 'llama2', preventing 404 errors
-12. **Dynamic Model Detection:** UI automatically detects and displays installed Ollama models
-13. **Local-First Design:** No Replit-specific code, runs perfectly on local systems
-
-## Troubleshooting
-
-**Ollama 404 Error:**
-- Ensure Ollama is running: `ollama serve`
-- Check models are installed: `ollama list`
-- Select a model from the UI dropdown (required!)
-
-**Export 500 Error:**
-- Make sure you have a conversation first (ask at least one question)
-- Exports require existing conversation data
-
-**Frontend Connection Errors:**
-- Backend must be running on port 8000 (local dev)
-- Frontend runs on port 5000 and proxies to backend
-
-## Next Steps
-The basic app is ready for both Replit and local development! 
-
-**To use:**
-1. Upload PDF, TXT, or DOCX files (10MB max)
-2. View extracted text from documents
-3. (Optional) Configure Ollama and select a model for AI chat
-4. Watch real-time progress as summaries are generated
-5. Export conversations as needed
-
-**For local development:**
-- See `README_LOCAL_SETUP.md` for detailed instructions
-- See `setup.sh` for automated setup
+### Backend
+- `fastapi`
+- `uvicorn`
+- `python-multipart`
+- `pymupdf` (for PDF text extraction)
+- `httpx` (for Ollama integration)
+- `fpdf2` (for PDF generation in exports)
