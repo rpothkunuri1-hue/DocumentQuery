@@ -3,6 +3,25 @@
 ## Overview
 DocuChat is a simplified PDF chat application enabling users to upload PDF documents, receive AI-generated summaries, and interact with Ollama AI regarding the document content. The project aims to provide a focused and efficient tool for document understanding and interaction, leveraging a modern tech stack.
 
+## Recent Changes (October 14, 2025)
+- **Ollama Availability Notifications (LATEST):**
+  - Toast notification appears when no Ollama models are detected
+  - Chat input disabled with helpful placeholder message when Ollama unavailable
+  - Send button disabled with "not-allowed" cursor when no models available
+  - Defensive guard in sendMessage prevents submission when Ollama unavailable
+- **Bug Fixes and Enhancements:**
+  - **Fixed Cancel Message Issue:** Blank assistant messages now properly removed when user stops generation or on error
+  - **Summary Banner Persistence:** Summary banner now stays visible during chat instead of disappearing
+  - **Message Edit/Delete Functionality:** Added complete edit and delete options for user messages
+    - Edit button (✏️) allows inline message editing with Save/Cancel options
+    - Delete button (🗑️) removes user message and its corresponding AI response
+    - Backend API endpoints: PATCH/DELETE `/api/messages/{conversation_id}/{message_id}`
+    - FileStorage methods: `update_message()` and `delete_message()` with edit tracking
+  - **Enhanced Timeout Handling:** Increased timeouts to prevent premature failures
+    - Chat responses: 120s → 300s (5 minutes) for large documents
+    - Summary generation: 120s → 180s (3 minutes)
+    - Better error messages for timeout/connection failures in UI
+
 ## User Preferences
 I prefer simple language. I want iterative development. Ask before making major changes. I prefer detailed explanations. Do not make changes to the folder Z. Do not make changes to the file Y.
 
